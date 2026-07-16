@@ -21,7 +21,7 @@
   }
   *{box-sizing:border-box;}
   body{margin:0;font-family:'Tajawal',sans-serif;background:var(--paper);color:var(--ink);}
-  #app{min-height:100vh;display:flex;flex-direction:column;}
+  #app{display:block;}
 
   /* Top nav */
   .topbar{background:var(--navy);color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
@@ -32,7 +32,7 @@
   .tab:hover{background:rgba(255,255,255,.08);}
   .tab.active{background:var(--gold);color:#fff;font-weight:700;}
 
-  .content{flex:1;padding:20px;max-width:1000px;width:100%;margin:0 auto;}
+  .content{padding:20px;max-width:1000px;width:100%;margin:0 auto;}
 
   /* Cards / generic */
   .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(22,50,63,.05);}
@@ -742,7 +742,8 @@ function renderLosses(){
   return `
     <div class="stat-banner">
       <div class="stat"><div class="num">${fmtMoney(profit)}</div><div class="lbl">صافي الأرباح (فواتير + طلبات أونلاين + إيداعات − خسائر)</div></div>
-      <div class="stat"><div class="num">${fmtMoney(sumInvoices()+sumOrders())}</div><div class="lbl">مكاسب الفواتير والطلبات</div></div>
+      <div class="stat"><div class="num">${fmtMoney(sumInvoices())}</div><div class="lbl">مكاسب الفواتير</div></div>
+      <div class="stat"><div class="num">${fmtMoney(sumOrders())}</div><div class="lbl">مكاسب الطلبات أونلاين</div></div>
       <div class="stat"><div class="num">${fmtMoney(sumLosses())}</div><div class="lbl">إجمالي الخسائر</div></div>
     </div>
 
