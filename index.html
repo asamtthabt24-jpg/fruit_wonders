@@ -901,7 +901,7 @@ function renderLosses(){
   const remaining = sumInvoices() - collected;
   return `
     <div class="stat-banner">
-      <div class="stat"><div class="num">${fmtMoney(profit)}</div><div class="lbl">صافي الأرباح (فواتير + طلبات أونلاين + إيداعات − خسائر)</div></div>
+      <div class="stat"><div class="num">${fmtMoney(profit)}</div><div class="lbl">صافي الأرباح)</div></div>
       <div class="stat"><div class="num">${fmtMoney(sumInvoices())}</div><div class="lbl">إجمالي الفواتير</div></div>
       <div class="stat"><div class="num">${fmtMoney(collected)}</div><div class="lbl">التحصيل من الفواتير</div></div>
       <div class="stat"><div class="num">${fmtMoney(remaining)}</div><div class="lbl">المتبقي بعد التحصيل</div></div>
