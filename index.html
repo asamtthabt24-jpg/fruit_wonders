@@ -168,7 +168,8 @@ function defaultData(){
     invoices:[],
     orders:[],
     losses:[],
-    funds:[]
+    funds:[],
+    receipts:[]
   };
 }
 
@@ -236,6 +237,12 @@ function randInvoiceNumber(){
   while(DATA.invoices.some(i=>i.number===n));
   return n;
 }
+function randReceiptNumber(){
+  let n;
+  do{ n = 'REC-'+Math.floor(100000+Math.random()*900000); }
+  while(DATA.receipts.some(r=>r.number===n));
+  return n;
+}
 function fmtMoney(n){ return (Math.round((n||0)*100)/100).toLocaleString('ar-SA',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtDate(ts){
   const d = new Date(ts);
@@ -292,6 +299,9 @@ function render(){
     case 'order-detail': body = renderOrderDetail(); break;
     case 'losses': body = renderLosses(); break;
     case 'company-settings': body = renderCompanySettings(); break;
+    case 'receipts': body = renderReceiptsList(); break;
+    case 'receipt-new': body = renderReceiptNew(); break;
+    case 'receipt-detail': body = renderReceiptDetail(); break;
     default: body = renderInvoicesList();
   }
 
@@ -302,6 +312,7 @@ function render(){
         <div class="tab ${tabActive(['invoices','invoice-items','invoice-customer','invoice-detail'])}" data-go="invoices">الفواتير</div>
         <div class="tab ${tabActive(['customers','customer-detail'])}" data-go="customers">العملاء</div>
         <div class="tab ${tabActive(['orders','order-new','order-detail'])}" data-go="orders">الطلبات أونلاين</div>
+        <div class="tab ${tabActive(['receipts','receipt-new','receipt-detail'])}" data-go="receipts">سندات القبض</div>
         <div class="tab ${tabActive(['losses'])}" data-go="losses">الأرباح والخسائر</div>
         <div class="tab" id="sync-btn" title="جلب أحدث البيانات من كل الأجهزة">${isOnline? '🔄 تحديث':'⚠️ غير متصل'}</div>
       </div>
@@ -737,6 +748,126 @@ function renderOrderDetail(){
   `;
 }
 
+/* ===================== RECEIPT VOUCHERS (سند قبض) ===================== */
+function renderReceiptsList(){
+  const q = (state.params.q||'').toLowerCase();
+  let list = DATA.receipts.slice().sort((a,b)=>b.createdAt-a.createdAt);
+  if(q) list = list.filter(r=> r.customerName.toLowerCase().includes(q) || (r.invoiceNumber||'').toLowerCase().includes(q));
+  const total = DATA.receipts.reduce((s,r)=>s+r.amount,0);
+  return `
+    <div class="stat-banner">
+      <div class="stat"><div class="num">${fmtMoney(total)}</div><div class="lbl">إجمالي المبالغ المقبوضة (ريال)</div></div>
+      <div class="stat"><div class="num">${DATA.receipts.length}</div><div class="lbl">عدد السندات</div></div>
+      <div style="margin-inline-start:auto;"><button class="btn-primary" data-go="receipt-new">+ سند قبض جديد</button></div>
+    </div>
+    <div class="card">
+      <input type="search" id="receipt-search" class="search-bar" placeholder="ابحث باسم العميل أو رقم الفاتورة المرتبطة..." value="${esc(state.params.q||'')}">
+      ${list.length? list.map(r=>`
+        <div class="list-item" data-open-receipt="${r.id}">
+          <div>
+            <div class="li-main">${esc(r.customerName)} <span class="badge badge-gold">${r.number}</span></div>
+            <div class="li-sub">${fmtDate(r.createdAt)}${r.invoiceNumber? ' · مرتبط بفاتورة '+esc(r.invoiceNumber):''}</div>
+          </div>
+          <div class="li-price">${fmtMoney(r.amount)} ر.س</div>
+        </div>`).join('') : `<div class="empty">لا توجد سندات قبض بعد</div>`}
+    </div>
+  `;
+}
+
+function renderReceiptNew(){
+  if(!state.draft || state.draft.type!=='receipt'){
+    state.draft = {type:'receipt', customerId:null, customerName:'', customerTax:'', amount:'', invoiceNumber:'', note:''};
+  }
+  const d = state.draft;
+  const q = (state._custQ||'').toLowerCase();
+  const matches = DATA.customers.filter(c => !q || c.name.toLowerCase().includes(q));
+  const custInvoices = d.customerId? DATA.invoices.filter(i=>i.customerId===d.customerId) : [];
+  return `
+    <h1>سند قبض جديد</h1>
+    <div class="card">
+      <label>اختر عميلاً موجوداً</label>
+      <input type="search" id="rcust-search" placeholder="ابحث عن اسم العميل..." value="${esc(state._custQ||'')}">
+      <div style="max-height:150px;overflow:auto;margin-top:8px;">
+        ${matches.length? matches.map(c=>`
+          <div class="item-row">
+            <div class="name">${esc(c.name)}</div>
+            <button class="btn-outline btn-sm" data-rpick-customer="${c.id}">اختيار</button>
+          </div>`).join('') : `<div style="color:var(--muted);font-size:13px;padding:6px;">لا يوجد عملاء مطابقين</div>`}
+      </div>
+      <h2 style="margin-top:16px;">أو أدخل اسم عميل يدوياً</h2>
+      <div class="row">
+        <div class="field"><label>اسم العميل</label><input type="text" id="rnew-cust-name" value="${esc(d.customerName)}"></div>
+      </div>
+      ${d.customerName? `<div style="color:var(--green);font-size:13px;margin-top:4px;">العميل المختار: <b>${esc(d.customerName)}</b></div>`:''}
+    </div>
+    <div class="card">
+      <div class="row">
+        <div class="field"><label>المبلغ المستلم</label><input type="number" id="r-amount" value="${esc(d.amount)}"></div>
+        <div class="field">
+          <label>مرتبط بفاتورة (اختياري)</label>
+          <select id="r-invoice">
+            <option value="">بدون ربط</option>
+            ${custInvoices.map(i=>`<option value="${i.number}" ${d.invoiceNumber===i.number?'selected':''}>${i.number} (${fmtMoney(i.manualTotal!=null?i.manualTotal:i.total)} ر.س)</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>ملاحظات (اختياري)</label><input type="text" id="r-note" value="${esc(d.note)}" placeholder="مثال: دفعة أولى"></div>
+      <div class="btn-row" style="justify-content:space-between;">
+        <button class="btn-outline" data-go="receipts">إلغاء</button>
+        <button class="btn-primary" id="r-save" ${d.customerName && d.amount? '':'disabled'}>حفظ السند</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderReceiptDetail(){
+  const r = DATA.receipts.find(x=>x.id===state.params.id);
+  if(!r) return `<div class="empty">السند غير موجود</div>`;
+  const confirming = state._confirmDelReceipt===r.id;
+  return `
+  <div class="no-print btn-row" style="margin-bottom:14px;justify-content:space-between;">
+    <button class="btn-outline" data-go="receipts">← رجوع لسندات القبض</button>
+    <div class="btn-row">
+      <button class="btn-navy" id="print-receipt">🖨 طباعة</button>
+      <button class="${confirming?'btn-confirm':'btn-danger'}" id="delete-receipt">${confirming?'اضغط للتأكيد ⚠️':'حذف السند'}</button>
+    </div>
+  </div>
+  <div class="card invoice-paper">
+    <div class="inv-notch-top"></div>
+    <div class="inv-head">
+      <div>
+        <div class="inv-num">${r.number}</div>
+        <div class="inv-dates">تاريخ السند: ${fmtDate(r.createdAt)}</div>
+      </div>
+      <div class="inv-company">
+        <div class="c-name">${esc(DATA.setup.companyName)}</div>
+        <div class="c-tax">الرقم الضريبي: ${esc(DATA.setup.taxNumber||'—')}</div>
+      </div>
+    </div>
+    <div class="inv-parties">
+      <div class="party">
+        <div class="p-label">استلمنا من السيد/ة</div>
+        <div class="p-name">${esc(r.customerName)}</div>
+      </div>
+    </div>
+    <div class="totals-box" style="width:100%;margin-bottom:18px;">
+      <div class="t-final" style="justify-content:space-between;"><span>المبلغ المستلم</span><span>${fmtMoney(r.amount)} ر.س</span></div>
+    </div>
+    ${r.invoiceNumber? `<div class="p-tax" style="margin-bottom:10px;">سداد مقابل الفاتورة رقم: <b>${esc(r.invoiceNumber)}</b></div>`:''}
+    ${r.note? `<div class="p-tax" style="margin-bottom:10px;">ملاحظات: ${esc(r.note)}</div>`:''}
+    <div class="inv-sign">
+      <div class="sign-box">
+        <div class="sl">توقيع المستلم (اختياري)</div>
+        <canvas class="sig-pad" id="r-sig-pad" width="260" height="90"></canvas>
+        <div class="no-print btn-row" style="margin-top:6px;">
+          <button class="btn-outline btn-sm" id="r-clear-sig">مسح التوقيع</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  `;
+}
+
 /* ===================== LOSSES & PROFIT ===================== */
 function renderLosses(){
   const profit = netProfit();
@@ -1017,7 +1148,7 @@ function bindViewEvents(){
   }
   // signature pad
   const sigPad = document.getElementById('sig-pad');
-  if(sigPad) initSignaturePad(sigPad, state.params.id);
+  if(sigPad) initSignaturePad(sigPad, ()=> DATA.invoices.find(i=>i.id===state.params.id));
   const clearSig = document.getElementById('clear-sig');
   if(clearSig){
     clearSig.addEventListener('click', async ()=>{
@@ -1114,6 +1245,89 @@ function bindViewEvents(){
       await saveData();
       toast('تم حذف الطلب');
       go('orders');
+    });
+  }
+
+  // Receipts (سند قبض)
+  const receiptSearch = document.getElementById('receipt-search');
+  if(receiptSearch) receiptSearch.addEventListener('input', e=> go('receipts',{q:e.target.value}));
+  document.querySelectorAll('[data-open-receipt]').forEach(el=>{
+    el.addEventListener('click', ()=> go('receipt-detail',{id:el.getAttribute('data-open-receipt')}));
+  });
+  const rcustSearch = document.getElementById('rcust-search');
+  if(rcustSearch) rcustSearch.addEventListener('input', e=>{ state._custQ = e.target.value; render(); });
+  document.querySelectorAll('[data-rpick-customer]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const c = DATA.customers.find(x=>x.id===el.getAttribute('data-rpick-customer'));
+      if(c){ state.draft.customerId=c.id; state.draft.customerName=c.name; state.draft.customerTax=c.taxNumber; }
+      render();
+    });
+  });
+  const rNewCustName = document.getElementById('rnew-cust-name');
+  if(rNewCustName){
+    rNewCustName.addEventListener('input', e=>{
+      state.draft.customerName = e.target.value;
+      state.draft.customerId = null;
+    });
+  }
+  const rAmount = document.getElementById('r-amount');
+  if(rAmount) rAmount.addEventListener('input', e=> state.draft.amount = e.target.value);
+  const rInvoice = document.getElementById('r-invoice');
+  if(rInvoice) rInvoice.addEventListener('change', e=> state.draft.invoiceNumber = e.target.value);
+  const rNote = document.getElementById('r-note');
+  if(rNote) rNote.addEventListener('input', e=> state.draft.note = e.target.value);
+  const rSave = document.getElementById('r-save');
+  if(rSave){
+    rSave.addEventListener('click', async ()=>{
+      const d = state.draft;
+      const amount = parseFloat(d.amount);
+      if(!d.customerName || isNaN(amount) || amount<=0){ toast('أدخل اسم العميل ومبلغاً صحيحاً'); return; }
+      const receipt = {
+        id: uid(),
+        number: randReceiptNumber(),
+        customerId: d.customerId||null,
+        customerName: d.customerName,
+        customerTax: d.customerTax||'',
+        amount,
+        invoiceNumber: d.invoiceNumber||'',
+        note: d.note||'',
+        signature: null,
+        createdAt: Date.now()
+      };
+      DATA.receipts.push(receipt);
+      state.draft = null;
+      await saveData();
+      toast('تم حفظ سند القبض');
+      go('receipt-detail',{id:receipt.id});
+    });
+  }
+  const printReceiptBtn = document.getElementById('print-receipt');
+  if(printReceiptBtn) printReceiptBtn.addEventListener('click', ()=> printReceipt(state.params.id));
+  const deleteReceipt = document.getElementById('delete-receipt');
+  if(deleteReceipt){
+    deleteReceipt.addEventListener('click', async ()=>{
+      if(state._confirmDelReceipt !== state.params.id){
+        state._confirmDelReceipt = state.params.id;
+        render();
+        return;
+      }
+      DATA.receipts = DATA.receipts.filter(r=>r.id!==state.params.id);
+      state._confirmDelReceipt = null;
+      await saveData();
+      toast('تم حذف السند');
+      go('receipts');
+    });
+  }
+  const rSigPad = document.getElementById('r-sig-pad');
+  if(rSigPad) initSignaturePad(rSigPad, ()=> DATA.receipts.find(r=>r.id===state.params.id));
+  const rClearSig = document.getElementById('r-clear-sig');
+  if(rClearSig){
+    rClearSig.addEventListener('click', async ()=>{
+      const ctx = rSigPad.getContext('2d');
+      ctx.clearRect(0,0,rSigPad.width,rSigPad.height);
+      const r = DATA.receipts.find(x=>x.id===state.params.id);
+      if(r) r.signature = null;
+      await saveData();
     });
   }
 
@@ -1242,6 +1456,70 @@ function printInvoice(invoiceId){
   win.document.close();
 }
 
+function printReceipt(receiptId){
+  const r = DATA.receipts.find(x=>x.id===receiptId);
+  if(!r){ toast('السند غير موجود'); return; }
+  const html = `<!DOCTYPE html>
+  <html lang="ar" dir="rtl"><head><meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>سند قبض ${esc(r.number)}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;}
+    body{font-family:'Tajawal',sans-serif;color:#20272B;margin:0;padding:26px 30px;background:#fff;}
+    .inv-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #16323F;padding-bottom:14px;margin-bottom:16px;}
+    .inv-num{background:#16323F;color:#fff;padding:6px 14px;border-radius:8px;font-weight:800;font-size:14px;}
+    .inv-dates{font-size:12px;color:#6B7680;margin-top:8px;}
+    .inv-company{text-align:left;}
+    .inv-company .c-name{font-weight:800;color:#16323F;font-size:16px;}
+    .inv-company .c-tax{font-size:12px;color:#6B7680;}
+    .party{background:#F1EADA;border-radius:10px;padding:10px 14px;margin-bottom:18px;}
+    .party .p-label{font-size:11px;color:#6B7680;font-weight:700;margin-bottom:3px;}
+    .party .p-name{font-weight:700;color:#16323F;}
+    .amount-box{display:flex;justify-content:space-between;padding:14px 16px;background:#B8873A;color:#fff;border-radius:10px;font-weight:800;font-size:19px;margin-bottom:16px;}
+    .p-tax{font-size:13px;color:#6B7680;margin-bottom:10px;}
+    .inv-sign{margin-top:30px;}
+    .sl{font-size:12px;color:#6B7680;margin-bottom:6px;}
+    img.sig{max-width:220px;max-height:90px;border-bottom:1px solid #20272B;}
+    @media print{ body{padding:0;} }
+  </style></head>
+  <body>
+    <div class="inv-head">
+      <div>
+        <div class="inv-num">${esc(r.number)}</div>
+        <div class="inv-dates">تاريخ السند: ${fmtDate(r.createdAt)}</div>
+      </div>
+      <div class="inv-company">
+        <div class="c-name">${esc(DATA.setup.companyName)}</div>
+        <div class="c-tax">الرقم الضريبي: ${esc(DATA.setup.taxNumber||'—')}</div>
+      </div>
+    </div>
+    <div class="party">
+      <div class="p-label">استلمنا من السيد/ة</div>
+      <div class="p-name">${esc(r.customerName)}</div>
+    </div>
+    <div class="amount-box"><span>المبلغ المستلم</span><span>${fmtMoney(r.amount)} ر.س</span></div>
+    ${r.invoiceNumber? `<div class="p-tax">سداد مقابل الفاتورة رقم: <b>${esc(r.invoiceNumber)}</b></div>`:''}
+    ${r.note? `<div class="p-tax">ملاحظات: ${esc(r.note)}</div>`:''}
+    <div class="inv-sign">
+      <div class="sl">توقيع المستلم</div>
+      ${r.signature ? `<img class="sig" src="${r.signature}">` : `<div style="width:220px;border-bottom:1px solid #20272B;height:60px;"></div>`}
+    </div>
+    <script>
+      window.onload = function(){ setTimeout(function(){ window.print(); }, 200); };
+    <\/script>
+  </body></html>`;
+
+  const win = window.open('', '_blank');
+  if(!win){
+    toast('يبدو أن المتصفح منع فتح نافذة جديدة. الرجاء السماح بالنوافذ المنبثقة.');
+    return;
+  }
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+}
+
 function recalcInvoice(inv){
   const totals = invoiceTotals(inv.items, inv.taxRate);
   inv.subtotal = totals.subtotal;
@@ -1253,16 +1531,16 @@ function recalcInvoice(inv){
 }
 
 /* ===================== SIGNATURE PAD ===================== */
-function initSignaturePad(canvas, invoiceId){
+function initSignaturePad(canvas, getRecord){
   const ctx = canvas.getContext('2d');
   ctx.lineWidth = 2;
   ctx.strokeStyle = '#16323F';
   ctx.lineCap = 'round';
-  const inv = DATA.invoices.find(i=>i.id===invoiceId);
-  if(inv && inv.signature){
+  const rec = getRecord();
+  if(rec && rec.signature){
     const img = new Image();
     img.onload = ()=> ctx.drawImage(img,0,0);
-    img.src = inv.signature;
+    img.src = rec.signature;
   }
   let drawing = false;
   function pos(e){
@@ -1273,7 +1551,7 @@ function initSignaturePad(canvas, invoiceId){
   }
   function start(e){ drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault(); }
   function move(e){ if(!drawing) return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); e.preventDefault(); }
-  function end(){ if(!drawing) return; drawing=false; const inv2=DATA.invoices.find(i=>i.id===invoiceId); if(inv2){ inv2.signature = canvas.toDataURL(); saveData(); } }
+  function end(){ if(!drawing) return; drawing=false; const rec2=getRecord(); if(rec2){ rec2.signature = canvas.toDataURL(); saveData(); } }
   canvas.addEventListener('mousedown', start);
   canvas.addEventListener('mousemove', move);
   canvas.addEventListener('mouseup', end);
