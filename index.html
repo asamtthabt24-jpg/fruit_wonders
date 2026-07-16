@@ -147,9 +147,17 @@
 <div id="app"></div>
 
 <script>
-/* ===================== STORAGE ===================== */
-const STORE_KEY = 'shop-data-v1';
+/* ===================== SUPABASE CONNECTION ===================== */
+const SUPABASE_URL = 'https://xjocljbzhtuhvinnfgih.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhqb2NsamJ6aHR1aHZpbm5mZ2loIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxNzM2NDYsImV4cCI6MjA5MTc0OTY0Nn0.cXdeSTixpn8_B1jAPFrzTrjnNh7ZYDlpIMYUVUA-vp4';
+const SB_HEADERS = {
+  apikey: SUPABASE_KEY,
+  Authorization: 'Bearer ' + SUPABASE_KEY,
+  'Content-Type': 'application/json'
+};
+
 let DATA = null;
+let isOnline = true;
 
 function defaultData(){
   return {
@@ -165,24 +173,46 @@ function defaultData(){
 
 async function loadData(){
   try{
-    const res = await window.storage.get(STORE_KEY, true);
-    if(res && res.value){ DATA = JSON.parse(res.value); }
-    else { DATA = defaultData(); }
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/shop_data?id=eq.main&select=data`, {
+      headers: SB_HEADERS
+    });
+    if(!res.ok) throw new Error('fetch failed: '+res.status);
+    const rows = await res.json();
+    if(rows && rows[0] && rows[0].data && Object.keys(rows[0].data).length){
+      DATA = rows[0].data;
+    } else {
+      DATA = defaultData();
+    }
+    isOnline = true;
   }catch(e){
-    DATA = defaultData();
+    console.error('تعذر تحميل البيانات من Supabase', e);
+    isOnline = false;
+    DATA = DATA || defaultData();
   }
   // fill in any missing fields (for forward compatibility)
   const d = defaultData();
   for(const k in d){ if(!(k in DATA)) DATA[k] = d[k]; }
 }
 
-let saveTimer = null;
 async function saveData(){
   try{
-    await window.storage.set(STORE_KEY, JSON.stringify(DATA), true);
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/shop_data?id=eq.main`, {
+      method:'PATCH',
+      headers: Object.assign({Prefer:'return=minimal'}, SB_HEADERS),
+      body: JSON.stringify({data: DATA, updated_at: new Date().toISOString()})
+    });
+    if(!res.ok) throw new Error('save failed: '+res.status);
+    isOnline = true;
   }catch(e){
-    console.error('تعذر الحفظ', e);
+    console.error('تعذر الحفظ في Supabase', e);
+    isOnline = false;
+    toast('⚠️ تعذر الحفظ — تحقق من اتصال الإنترنت');
   }
+}
+
+async function refreshFromServer(){
+  await loadData();
+  render();
 }
 
 /* ===================== APP STATE ===================== */
@@ -271,6 +301,7 @@ function render(){
         <div class="tab ${tabActive(['customers','customer-detail'])}" data-go="customers">العملاء</div>
         <div class="tab ${tabActive(['orders','order-new','order-detail'])}" data-go="orders">الطلبات أونلاين</div>
         <div class="tab ${tabActive(['losses'])}" data-go="losses">الأرباح والخسائر</div>
+        <div class="tab" id="sync-btn" title="جلب أحدث البيانات من كل الأجهزة">${isOnline? '🔄 تحديث':'⚠️ غير متصل'}</div>
       </div>
     </div>
     <div class="content">${body}</div>
@@ -278,6 +309,8 @@ function render(){
   document.querySelectorAll('[data-go]').forEach(el=>{
     el.addEventListener('click', ()=> go(el.getAttribute('data-go')));
   });
+  const syncBtn = document.getElementById('sync-btn');
+  if(syncBtn) syncBtn.addEventListener('click', async ()=>{ await refreshFromServer(); toast('تم التحديث'); });
   bindViewEvents();
 }
 function tabActive(list){ return list.includes(state.view) ? 'active' : ''; }
@@ -1168,9 +1201,16 @@ function initSignaturePad(canvas, invoiceId){
 }
 
 /* ===================== BOOT ===================== */
+const SAFE_AUTOSYNC_VIEWS = ['invoices','customers','orders','losses'];
 (async function(){
   await loadData();
   render();
+  setInterval(async ()=>{
+    if(SAFE_AUTOSYNC_VIEWS.includes(state.view)){
+      await loadData();
+      render();
+    }
+  }, 15000);
 })();
 </script>
 </body>
