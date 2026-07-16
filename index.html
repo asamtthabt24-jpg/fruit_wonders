@@ -290,12 +290,13 @@ function render(){
     case 'order-new': body = renderOrderNew(); break;
     case 'order-detail': body = renderOrderDetail(); break;
     case 'losses': body = renderLosses(); break;
+    case 'company-settings': body = renderCompanySettings(); break;
     default: body = renderInvoicesList();
   }
 
   app.innerHTML = `
     <div class="topbar no-print">
-      <div class="brand">${esc(DATA.setup.companyName)}<small>الرقم الضريبي: ${esc(DATA.setup.taxNumber || '—')}</small></div>
+      <div class="brand" id="brand-edit" style="cursor:pointer;" title="اضغط لتعديل بيانات الشركة">${esc(DATA.setup.companyName)} ✎<small>الرقم الضريبي: ${esc(DATA.setup.taxNumber || '—')}</small></div>
       <div class="tabs">
         <div class="tab ${tabActive(['invoices','invoice-items','invoice-customer','invoice-detail'])}" data-go="invoices">الفواتير</div>
         <div class="tab ${tabActive(['customers','customer-detail'])}" data-go="customers">العملاء</div>
@@ -311,9 +312,30 @@ function render(){
   });
   const syncBtn = document.getElementById('sync-btn');
   if(syncBtn) syncBtn.addEventListener('click', async ()=>{ await refreshFromServer(); toast('تم التحديث'); });
+  const brandEdit = document.getElementById('brand-edit');
+  if(brandEdit) brandEdit.addEventListener('click', ()=> go('company-settings'));
   bindViewEvents();
 }
 function tabActive(list){ return list.includes(state.view) ? 'active' : ''; }
+
+/* ===================== COMPANY SETTINGS (edit name / tax number) ===================== */
+function renderCompanySettings(){
+  return `
+    <button class="btn-outline no-print" data-go="invoices" style="margin-bottom:14px;">← رجوع</button>
+    <div class="card" style="max-width:420px;">
+      <h1>بيانات الشركة</h1>
+      <div class="field">
+        <label>اسم الشركة</label>
+        <input type="text" id="cs-name" value="${esc(DATA.setup.companyName)}">
+      </div>
+      <div class="field">
+        <label>الرقم الضريبي</label>
+        <input type="text" id="cs-tax" value="${esc(DATA.setup.taxNumber||'')}">
+      </div>
+      <button class="btn-primary" id="cs-save">حفظ التعديلات</button>
+    </div>
+  `;
+}
 
 /* ===================== SETUP (first run) ===================== */
 function renderSetup(){
@@ -551,15 +573,16 @@ function renderInvoiceDetail(){
       <div class="totals-box">
         <div class="t-row"><span>الإجمالي قبل الضريبة</span><span>${fmtMoney(inv.subtotal)} ر.س</span></div>
         <div class="t-row"><span>الضريبة (${inv.taxRate}%)</span><span>${fmtMoney(inv.tax)} ر.س</span></div>
-        ${inv.manualTotal!=null? `<div class="t-old">السعر الأصلي: ${fmtMoney(inv.total)} ر.س</div>`:''}
+        ${inv.manualTotal!=null? `<div class="t-old">السعر قبل الخصم: ${fmtMoney(inv.total)} ر.س</div>`:''}
         <div class="t-final"><span>الإجمالي المستحق</span><span>${fmtMoney(displayTotal)} ر.س</span></div>
       </div>
     </div>
 
     <div class="no-print btn-row" style="justify-content:flex-end;">
-      <input type="number" id="manual-price" placeholder="مبلغ الخصم (يُطرح من السعر الأصلي)" style="max-width:220px;">
+      <input type="number" id="manual-price" placeholder="مبلغ الخصم (يُطرح من السعر الحالي)" style="max-width:220px;">
       <button class="btn-outline btn-sm" id="apply-manual-price">تطبيق الخصم</button>
-      ${inv.manualTotal!=null? `<button class="btn-outline btn-sm" id="revert-price">↩ استرجاع السعر الأصلي</button>`:''}
+      ${(inv.priceHistory && inv.priceHistory.length)? `<button class="btn-outline btn-sm" id="revert-price">↩ التراجع عن آخر خصم</button>`:''}
+      ${inv.manualTotal!=null? `<button class="btn-outline btn-sm" id="revert-all-price">↩↩ استرجاع السعر الأصلي بالكامل</button>`:''}
     </div>
 
     <div class="inv-sign">
@@ -593,12 +616,16 @@ function renderCustomers(){
       <input type="search" id="cust-list-search" class="search-bar" placeholder="ابحث عن عميل..." value="${esc(state.params.q||'')}">
       ${list.length? list.map(c=>{
         const cnt = DATA.invoices.filter(i=>i.customerId===c.id).length;
+        const confirming = state._confirmDelCustomer===c.id;
         return `<div class="list-item" data-open-customer="${c.id}">
           <div>
             <div class="li-main">${esc(c.name)}</div>
             <div class="li-sub">الرقم الضريبي: ${esc(c.taxNumber||'—')}</div>
           </div>
-          <div class="li-right"><span class="badge badge-green">${cnt} فاتورة</span></div>
+          <div class="li-right" style="display:flex;align-items:center;gap:8px;">
+            <span class="badge badge-green">${cnt} فاتورة</span>
+            <button class="${confirming?'btn-confirm':'btn-danger'} btn-sm" data-del-customer="${c.id}">${confirming? 'تأكيد؟':'حذف'}</button>
+          </div>
         </div>`;
       }).join('') : `<div class="empty">لا يوجد عملاء بعد</div>`}
     </div>
@@ -609,8 +636,12 @@ function renderCustomerDetail(){
   if(!c) return `<div class="empty">العميل غير موجود</div>`;
   const invs = DATA.invoices.filter(i=>i.customerId===c.id).sort((a,b)=>b.updatedAt-a.updatedAt);
   const total = invs.reduce((s,i)=> s + (i.manualTotal!=null?i.manualTotal:i.total), 0);
+  const confirmingDel = state._confirmDelCustomer===c.id;
   return `
-    <button class="btn-outline no-print" data-go="customers" style="margin-bottom:14px;">← رجوع للعملاء</button>
+    <div class="no-print btn-row" style="justify-content:space-between;margin-bottom:14px;">
+      <button class="btn-outline" data-go="customers">← رجوع للعملاء</button>
+      <button class="${confirmingDel?'btn-confirm':'btn-danger'}" data-del-customer="${c.id}">${confirmingDel? 'اضغط للتأكيد ⚠️':'حذف هذا العميل'}</button>
+    </div>
     <div class="stat-banner">
       <div class="stat"><div class="num">${fmtMoney(total)}</div><div class="lbl">إجمالي فواتير ${esc(c.name)}</div></div>
       <div class="stat"><div class="num">${invs.length}</div><div class="lbl">عدد الفواتير</div></div>
@@ -759,6 +790,20 @@ function renderLosses(){
 
 /* ===================== EVENT BINDING PER VIEW ===================== */
 function bindViewEvents(){
+  // Company settings
+  const csSave = document.getElementById('cs-save');
+  if(csSave){
+    csSave.addEventListener('click', async ()=>{
+      const name = document.getElementById('cs-name').value.trim();
+      const tax = document.getElementById('cs-tax').value.trim();
+      if(!name){ toast('أدخل اسم الشركة'); return; }
+      DATA.setup.companyName = name;
+      DATA.setup.taxNumber = tax;
+      await saveData();
+      toast('تم حفظ بيانات الشركة');
+      go('invoices');
+    });
+  }
   // Invoices list
   const invSearch = document.getElementById('inv-search');
   if(invSearch){
@@ -930,9 +975,12 @@ function bindViewEvents(){
     applyManual.addEventListener('click', async ()=>{
       const inv = DATA.invoices.find(i=>i.id===state.params.id);
       const discount = parseFloat(document.getElementById('manual-price').value);
+      const current = inv.manualTotal!=null ? inv.manualTotal : inv.total;
       if(isNaN(discount) || discount<0){ toast('أدخل مبلغ خصم صحيح'); return; }
-      if(discount > inv.total){ toast('مبلغ الخصم أكبر من إجمالي الفاتورة'); return; }
-      inv.manualTotal = inv.total - discount;
+      if(discount > current){ toast('مبلغ الخصم أكبر من السعر الحالي'); return; }
+      if(!inv.priceHistory) inv.priceHistory = [];
+      inv.priceHistory.push(current);
+      inv.manualTotal = current - discount;
       inv.updatedAt = Date.now();
       await saveData();
       toast('تم تطبيق الخصم');
@@ -943,10 +991,25 @@ function bindViewEvents(){
   if(revertPrice){
     revertPrice.addEventListener('click', async ()=>{
       const inv = DATA.invoices.find(i=>i.id===state.params.id);
-      inv.manualTotal = null;
+      if(inv.priceHistory && inv.priceHistory.length){
+        const prev = inv.priceHistory.pop();
+        inv.manualTotal = (prev === inv.total) ? null : prev;
+      }
       inv.updatedAt = Date.now();
       await saveData();
-      toast('تم استرجاع السعر الأصلي');
+      toast('تم التراجع عن آخر خصم');
+      render();
+    });
+  }
+  const revertAllPrice = document.getElementById('revert-all-price');
+  if(revertAllPrice){
+    revertAllPrice.addEventListener('click', async ()=>{
+      const inv = DATA.invoices.find(i=>i.id===state.params.id);
+      inv.manualTotal = null;
+      inv.priceHistory = [];
+      inv.updatedAt = Date.now();
+      await saveData();
+      toast('تم استرجاع السعر الأصلي بالكامل');
       render();
     });
   }
@@ -982,6 +1045,22 @@ function bindViewEvents(){
   }
   document.querySelectorAll('[data-open-customer]').forEach(el=>{
     el.addEventListener('click', ()=> go('customer-detail',{id:el.getAttribute('data-open-customer')}));
+  });
+  document.querySelectorAll('[data-del-customer]').forEach(el=>{
+    el.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      const cid = el.getAttribute('data-del-customer');
+      if(state._confirmDelCustomer !== cid){
+        state._confirmDelCustomer = cid;
+        render();
+        return;
+      }
+      DATA.customers = DATA.customers.filter(c=>c.id!==cid);
+      state._confirmDelCustomer = null;
+      await saveData();
+      toast('تم حذف العميل');
+      go('customers');
+    });
   });
 
   // Orders
@@ -1166,6 +1245,7 @@ function recalcInvoice(inv){
   inv.tax = totals.tax;
   inv.total = totals.total;
   inv.manualTotal = null; // editing items resets manual override
+  inv.priceHistory = [];
   inv.updatedAt = Date.now();
 }
 
