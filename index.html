@@ -243,10 +243,11 @@ function randReceiptNumber(){
   while(DATA.receipts.some(r=>r.number===n));
   return n;
 }
-function fmtMoney(n){ return (Math.round((n||0)*100)/100).toLocaleString('ar-SA',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtMoney(n){ return (Math.round((n||0)*100)/100).toLocaleString('ar-SA-u-nu-latn',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtDate(ts){
   const d = new Date(ts);
-  return d.toLocaleDateString('ar-SA',{year:'numeric',month:'2-digit',day:'2-digit'})+' '+d.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'});
+  const locale = 'ar-SA-u-ca-gregory-nu-latn';
+  return d.toLocaleDateString(locale,{year:'numeric',month:'2-digit',day:'2-digit'})+' '+d.toLocaleTimeString(locale,{hour:'2-digit',minute:'2-digit'});
 }
 function esc(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
@@ -272,6 +273,7 @@ function invoiceTotals(items, taxRate){
   return {subtotal,tax,total};
 }
 function sumInvoices(){ return DATA.invoices.reduce((s,i)=> s + (i.manualTotal!=null? i.manualTotal : i.total), 0); }
+function sumCollectedFromInvoices(){ return DATA.receipts.filter(r=>r.invoiceNumber).reduce((s,r)=> s + r.amount, 0); }
 function sumOrders(){ return DATA.orders.reduce((s,o)=> s + o.total, 0); }
 function sumFunds(){ return DATA.funds.reduce((s,f)=> s + f.amount, 0); }
 function sumLosses(){ return DATA.losses.reduce((s,l)=> s + l.amount, 0); }
@@ -280,9 +282,29 @@ function netProfit(){ return sumInvoices() + sumOrders() + sumFunds() - sumLosse
 /* ===================== RENDER SHELL ===================== */
 function render(){
   const app = document.getElementById('app');
+
+  // Remember which field (if any) is focused so typing doesn't lose focus after re-render
+  const active = document.activeElement;
+  const activeId = (active && active.id) ? active.id : null;
+  let selStart = null, selEnd = null;
+  if(activeId && (active.tagName==='INPUT' || active.tagName==='TEXTAREA')){
+    try{ selStart = active.selectionStart; selEnd = active.selectionEnd; }catch(e){}
+  }
+  function restoreFocus(){
+    if(!activeId) return;
+    const el = document.getElementById(activeId);
+    if(el){
+      el.focus();
+      if(selStart!=null && el.setSelectionRange){
+        try{ el.setSelectionRange(selStart, selEnd); }catch(e){}
+      }
+    }
+  }
+
   if(!DATA.setup.done){
     app.innerHTML = renderSetup();
     bindSetup();
+    restoreFocus();
     return;
   }
 
@@ -327,6 +349,7 @@ function render(){
   const brandEdit = document.getElementById('brand-edit');
   if(brandEdit) brandEdit.addEventListener('click', ()=> go('company-settings'));
   bindViewEvents();
+  restoreFocus();
 }
 function tabActive(list){ return list.includes(state.view) ? 'active' : ''; }
 
@@ -405,10 +428,13 @@ function renderInvoicesList(){
       <input type="search" id="inv-search" class="search-bar" placeholder="ابحث باسم العميل، رقم الفاتورة، أو التاريخ..." value="${esc(q)}">
       ${list.length? list.map(inv=>{
         const disp = inv.manualTotal!=null? inv.manualTotal : inv.total;
+        const collected = DATA.receipts.filter(r=>r.invoiceNumber===inv.number).reduce((s,r)=>s+r.amount,0);
+        const remaining = disp - collected;
         return `<div class="list-item" data-open-invoice="${inv.id}">
           <div>
-            <div class="li-main">${esc(inv.customerName)} <span class="badge badge-gold">${inv.number}</span></div>
+            <div class="li-main">${esc(inv.customerName)} <span class="badge badge-gold">${inv.number}</span> ${inv.signature? `<span class="badge badge-green">موقّعة</span>`:''}</div>
             <div class="li-sub">أُنشئت: ${fmtDate(inv.createdAt)} · آخر تعديل: ${fmtDate(inv.updatedAt)}</div>
+            ${collected>0? `<div class="li-sub">محصّل: ${fmtMoney(collected)} ر.س · المتبقي: ${fmtMoney(remaining)} ر.س</div>`:''}
           </div>
           <div class="li-right">
             <div class="li-price">${fmtMoney(disp)} ر.س</div>
@@ -871,10 +897,14 @@ function renderReceiptDetail(){
 /* ===================== LOSSES & PROFIT ===================== */
 function renderLosses(){
   const profit = netProfit();
+  const collected = sumCollectedFromInvoices();
+  const remaining = sumInvoices() - collected;
   return `
     <div class="stat-banner">
       <div class="stat"><div class="num">${fmtMoney(profit)}</div><div class="lbl">صافي الأرباح (فواتير + طلبات أونلاين + إيداعات − خسائر)</div></div>
-      <div class="stat"><div class="num">${fmtMoney(sumInvoices())}</div><div class="lbl">مكاسب الفواتير</div></div>
+      <div class="stat"><div class="num">${fmtMoney(sumInvoices())}</div><div class="lbl">إجمالي الفواتير</div></div>
+      <div class="stat"><div class="num">${fmtMoney(collected)}</div><div class="lbl">التحصيل من الفواتير</div></div>
+      <div class="stat"><div class="num">${fmtMoney(remaining)}</div><div class="lbl">المتبقي بعد التحصيل</div></div>
       <div class="stat"><div class="num">${fmtMoney(sumOrders())}</div><div class="lbl">مكاسب الطلبات أونلاين</div></div>
       <div class="stat"><div class="num">${fmtMoney(sumLosses())}</div><div class="lbl">إجمالي الخسائر</div></div>
     </div>
