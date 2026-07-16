@@ -725,7 +725,7 @@ function renderOrderNew(){
       </div>
       <div class="btn-row" style="justify-content:flex-end;">
         <button class="btn-outline" data-go="orders">إلغاء</button>
-        <button class="btn-primary" id="o-save" ${d.customerName && d.items.length? '':'disabled'}>حفظ الطلب</button>
+        <button class="btn-primary" id="o-save">حفظ الطلب</button>
       </div>
     </div>
   `;
@@ -814,7 +814,7 @@ function renderReceiptNew(){
       <div class="field"><label>ملاحظات (اختياري)</label><input type="text" id="r-note" value="${esc(d.note)}" placeholder="مثال: دفعة أولى"></div>
       <div class="btn-row" style="justify-content:space-between;">
         <button class="btn-outline" data-go="receipts">إلغاء</button>
-        <button class="btn-primary" id="r-save" ${d.customerName && d.amount? '':'disabled'}>حفظ السند</button>
+        <button class="btn-primary" id="r-save">حفظ السند</button>
       </div>
     </div>
   `;
