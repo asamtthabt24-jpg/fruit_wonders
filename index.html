@@ -433,7 +433,7 @@ function renderInvoicesList(){
         return `<div class="list-item" data-open-invoice="${inv.id}">
           <div>
             <div class="li-main">${esc(inv.customerName)} <span class="badge badge-gold">${inv.number}</span> ${inv.signature? `<span class="badge badge-green">موقّعة</span>`:''}</div>
-            <div class="li-sub">أُنشئت: ${fmtDate(inv.createdAt)} · آخر تعديل: ${fmtDate(inv.updatedAt)}</div>
+            <div class="li-sub">أُنشئت: ${fmtDate(inv.createdAt)} · آخر تعديل: ${fmtDate(inv.updatedAt)}${inv.recordedBy? ' · سجّله: '+esc(inv.recordedBy):''}</div>
             ${collected>0? `<div class="li-sub">محصّل: ${fmtMoney(collected)} ر.س · المتبقي: ${fmtMoney(remaining)} ر.س</div>`:''}
           </div>
           <div class="li-right">
@@ -449,7 +449,7 @@ function renderInvoicesList(){
 /* ===================== INVOICE STEP 1: ITEMS ===================== */
 function renderInvoiceItemsStep(){
   if(!state.draft || state.draft.type!=='invoice'){
-    state.draft = {type:'invoice', items:[], taxRate:15, taxOn:true};
+    state.draft = {type:'invoice', items:[], taxRate:15, taxOn:true, recordedBy:''};
   }
   const d = state.draft;
   const catQ = (state._catQ||'').toLowerCase();
@@ -536,7 +536,13 @@ function renderInvoiceCustomerStep(){
         <div class="field"><label>اسم العميل</label><input type="text" id="new-cust-name" value="${esc(state._newCustName||'')}"></div>
         <div class="field"><label>الرقم الضريبي (اختياري)</label><input type="text" id="new-cust-tax" value="${esc(state._newCustTax||'')}"></div>
       </div>
+      <div class="field"><label>الموقع (اختياري)</label><input type="text" id="new-cust-location" value="${esc(state._newCustLocation||'')}" placeholder="مثال: حي النخيل، شارع الأمير سلطان"></div>
       <button class="btn-navy btn-sm" id="use-new-customer">استخدام هذا العميل</button>
+
+      <div class="field" style="margin-top:18px;">
+        <label>اسم الموظف الذي سجّل الفاتورة (اختياري)</label>
+        <input type="text" id="inv-recorded-by" value="${esc(d.recordedBy||'')}" placeholder="مثال: محمد">
+      </div>
 
       <div class="btn-row" style="justify-content:space-between;margin-top:20px;">
         <button class="btn-outline" data-go="invoice-items">← رجوع للأصناف</button>
@@ -567,7 +573,7 @@ function renderInvoiceDetail(){
     <div class="inv-head">
       <div>
         <div class="inv-num">${inv.number}</div>
-        <div class="inv-dates">تاريخ الإنشاء: ${fmtDate(inv.createdAt)}<br>آخر تعديل: ${fmtDate(inv.updatedAt)}</div>
+        <div class="inv-dates">تاريخ الإنشاء: ${fmtDate(inv.createdAt)}<br>آخر تعديل: ${fmtDate(inv.updatedAt)}${inv.recordedBy? '<br>سجّله: '+esc(inv.recordedBy):''}</div>
       </div>
       <div class="inv-company">
         <div class="c-name">${esc(DATA.setup.companyName)}</div>
@@ -648,6 +654,7 @@ function renderCustomers(){
         <div class="field"><label>اسم العميل</label><input type="text" id="cnew-name"></div>
         <div class="field"><label>الرقم الضريبي (اختياري)</label><input type="text" id="cnew-tax"></div>
       </div>
+      <div class="field"><label>الموقع (اختياري)</label><input type="text" id="cnew-location" placeholder="مثال: حي النخيل، شارع الأمير سلطان"></div>
       <button class="btn-primary" id="cnew-save">إضافة العميل</button>
     </div>
     <div class="card">
@@ -658,7 +665,7 @@ function renderCustomers(){
         return `<div class="list-item" data-open-customer="${c.id}">
           <div>
             <div class="li-main">${esc(c.name)}</div>
-            <div class="li-sub">الرقم الضريبي: ${esc(c.taxNumber||'—')}</div>
+            <div class="li-sub">الرقم الضريبي: ${esc(c.taxNumber||'—')}${c.location? ' · '+esc(c.location):''}</div>
           </div>
           <div class="li-right" style="display:flex;align-items:center;gap:8px;">
             <span class="badge badge-green">${cnt} فاتورة</span>
@@ -686,7 +693,7 @@ function renderCustomerDetail(){
     </div>
     <div class="card">
       <h2>${esc(c.name)}</h2>
-      <div style="color:var(--muted);font-size:13px;margin-bottom:12px;">الرقم الضريبي: ${esc(c.taxNumber||'—')}</div>
+      <div style="color:var(--muted);font-size:13px;margin-bottom:12px;">الرقم الضريبي: ${esc(c.taxNumber||'—')}${c.location? ' · الموقع: '+esc(c.location):''}</div>
       ${invs.length? invs.map(inv=>{
         const disp = inv.manualTotal!=null? inv.manualTotal:inv.total;
         return `<div class="list-item" data-open-invoice="${inv.id}">
@@ -901,7 +908,7 @@ function renderLosses(){
   const remaining = sumInvoices() - collected;
   return `
     <div class="stat-banner">
-      <div class="stat"><div class="num">${fmtMoney(profit)}</div><div class="lbl">صافي الأرباح)</div></div>
+      <div class="stat"><div class="num">${fmtMoney(profit)}</div><div class="lbl">صافي الأرباح (فواتير + طلبات أونلاين + إيداعات − خسائر)</div></div>
       <div class="stat"><div class="num">${fmtMoney(sumInvoices())}</div><div class="lbl">إجمالي الفواتير</div></div>
       <div class="stat"><div class="num">${fmtMoney(collected)}</div><div class="lbl">التحصيل من الفواتير</div></div>
       <div class="stat"><div class="num">${fmtMoney(remaining)}</div><div class="lbl">المتبقي بعد التحصيل</div></div>
@@ -1050,17 +1057,24 @@ function bindViewEvents(){
     useNewCustomer.addEventListener('click', ()=>{
       const name = document.getElementById('new-cust-name').value.trim();
       const tax = document.getElementById('new-cust-tax').value.trim();
+      const location = document.getElementById('new-cust-location').value.trim();
       if(!name){ toast('أدخل اسم العميل'); return; }
       let c = DATA.customers.find(x=>x.name===name);
       if(!c){
-        c = {id:uid(), name, taxNumber:tax, createdAt:Date.now()};
+        c = {id:uid(), name, taxNumber:tax, location, createdAt:Date.now()};
         DATA.customers.push(c);
+      } else if(location && !c.location){
+        c.location = location;
       }
       state.draft.customerId = c.id;
       state.draft.customerName = c.name;
       state.draft.customerTax = c.taxNumber;
       render();
     });
+  }
+  const invRecordedBy = document.getElementById('inv-recorded-by');
+  if(invRecordedBy){
+    invRecordedBy.addEventListener('input', e=>{ state.draft.recordedBy = e.target.value; });
   }
   const saveInvoiceBtn = document.getElementById('save-invoice');
   if(saveInvoiceBtn){
@@ -1080,6 +1094,7 @@ function bindViewEvents(){
         tax: totals.tax,
         total: totals.total,
         manualTotal: null,
+        recordedBy: d.recordedBy||'',
         signature: null,
         createdAt: now,
         updatedAt: now
@@ -1196,9 +1211,11 @@ function bindViewEvents(){
     cnewSave.addEventListener('click', async ()=>{
       const name = document.getElementById('cnew-name').value.trim();
       const tax = document.getElementById('cnew-tax').value.trim();
+      const location = document.getElementById('cnew-location').value.trim();
       if(!name){ toast('أدخل اسم العميل'); return; }
-      DATA.customers.push({id:uid(),name,taxNumber:tax,createdAt:Date.now()});
+      DATA.customers.push({id:uid(),name,taxNumber:tax,location,createdAt:Date.now()});
       await saveData();
+      toast('تمت إضافة العميل');
       go('customers');
     });
   }
@@ -1439,7 +1456,7 @@ function printInvoice(invoiceId){
     <div class="inv-head">
       <div>
         <div class="inv-num">${esc(inv.number)}</div>
-        <div class="inv-dates">تاريخ الإنشاء: ${fmtDate(inv.createdAt)}<br>آخر تعديل: ${fmtDate(inv.updatedAt)}</div>
+        <div class="inv-dates">تاريخ الإنشاء: ${fmtDate(inv.createdAt)}<br>آخر تعديل: ${fmtDate(inv.updatedAt)}${inv.recordedBy? '<br>سجّله: '+esc(inv.recordedBy):''}</div>
       </div>
       <div class="inv-company">
         <div class="c-name">${esc(DATA.setup.companyName)}</div>
