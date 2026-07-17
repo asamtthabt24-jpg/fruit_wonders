@@ -276,7 +276,7 @@ function sumInvoices(){ return DATA.invoices.reduce((s,i)=> s + (i.manualTotal!=
 function grossInvoicesTotal(){ return DATA.invoices.reduce((s,i)=> s + i.total, 0); }
 function invoiceDiscountsTotal(){ return DATA.invoices.reduce((s,i)=> s + (i.manualTotal!=null? (i.total - i.manualTotal) : 0), 0); }
 function receiptsCollectedForInvoices(){ return DATA.receipts.filter(r=>r.invoiceNumber).reduce((s,r)=> s + r.amount, 0); }
-function sumCollectedFromInvoices(){ return invoiceDiscountsTotal() + receiptsCollectedForInvoices(); }
+function sumCollectedFromInvoices(){ return invoiceDiscountsTotal(); }
 function sumOrders(){ return DATA.orders.reduce((s,o)=> s + o.total, 0); }
 function sumFunds(){ return DATA.funds.reduce((s,f)=> s + f.amount, 0); }
 function sumLosses(){ return DATA.losses.reduce((s,l)=> s + l.amount, 0); }
@@ -916,7 +916,7 @@ function renderLosses(){
     <div class="stat-banner">
       <div class="stat"><div class="num">${fmtMoney(profit)}</div><div class="lbl">صافي الأرباح (فواتير + طلبات أونلاين + إيداعات − خسائر)</div></div>
       <div class="stat"><div class="num">${fmtMoney(gross)}</div><div class="lbl">إجمالي الفواتير</div></div>
-      <div class="stat"><div class="num">${fmtMoney(collected)}</div><div class="lbl">التحصيل من الفواتير (خصومات + سندات قبض)</div></div>
+      <div class="stat"><div class="num">${fmtMoney(collected)}</div><div class="lbl">التحصيل من الفواتير (خصومات فقط)</div></div>
       <div class="stat"><div class="num">${fmtMoney(remaining)}</div><div class="lbl">المتبقي بعد التحصيل</div></div>
       <div class="stat"><div class="num">${fmtMoney(sumOrders())}</div><div class="lbl">مكاسب الطلبات أونلاين</div></div>
       <div class="stat"><div class="num">${fmtMoney(sumLosses())}</div><div class="lbl">إجمالي الخسائر</div></div>
