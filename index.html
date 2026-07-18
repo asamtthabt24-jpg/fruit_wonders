@@ -280,7 +280,7 @@ function sumCollectedFromInvoices(){ return invoiceDiscountsTotal(); }
 function sumOrders(){ return DATA.orders.reduce((s,o)=> s + o.total, 0); }
 function sumFunds(){ return DATA.funds.reduce((s,f)=> s + f.amount, 0); }
 function sumLosses(){ return DATA.losses.reduce((s,l)=> s + l.amount, 0); }
-function netProfit(){ return sumInvoices() + sumOrders() + sumFunds() - sumLosses(); }
+function netProfit(){ return sumCollectedFromInvoices() + sumOrders() + sumFunds() - sumLosses(); }
 
 /* ===================== RENDER SHELL ===================== */
 function render(){
@@ -921,7 +921,7 @@ function renderLosses(){
   const remaining = gross - collected;
   return `
     <div class="stat-banner">
-      <div class="stat"><div class="num">${fmtMoney(profit)}</div><div class="lbl">صافي الأرباح (فواتير + طلبات أونلاين + إيداعات − خسائر)</div></div>
+      <div class="stat"><div class="num">${fmtMoney(profit)}</div><div class="lbl">صافي الأرباح (التحصيل من الفواتير + طلبات أونلاين + إيداعات − خسائر)</div></div>
       <div class="stat"><div class="num">${fmtMoney(gross)}</div><div class="lbl">إجمالي الفواتير</div></div>
       <div class="stat"><div class="num">${fmtMoney(collected)}</div><div class="lbl">التحصيل من الفواتير (خصومات فقط)</div></div>
       <div class="stat"><div class="num">${fmtMoney(remaining)}</div><div class="lbl">المتبقي بعد التحصيل</div></div>
