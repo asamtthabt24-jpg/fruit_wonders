@@ -697,8 +697,15 @@ function renderCustomerDetail(){
       <div class="stat"><div class="num">${invs.length}</div><div class="lbl">عدد الفواتير</div></div>
     </div>
     <div class="card">
+      <h2>تعديل بيانات العميل</h2>
+      <div class="row">
+        <div class="field"><label>اسم العميل</label><input type="text" id="cedit-name" value="${esc(c.name)}"></div>
+        <div class="field"><label>الرقم الضريبي</label><input type="text" id="cedit-tax" value="${esc(c.taxNumber||'')}"></div>
+      </div>
+      <button class="btn-primary btn-sm" id="cedit-save">حفظ التعديلات</button>
+    </div>
+    <div class="card">
       <h2>${esc(c.name)}</h2>
-      <div style="color:var(--muted);font-size:13px;margin-bottom:12px;">الرقم الضريبي: ${esc(c.taxNumber||'—')}</div>
       ${invs.length? invs.map(inv=>{
         const disp = inv.manualTotal!=null? inv.manualTotal:inv.total;
         return `<div class="list-item" data-open-invoice="${inv.id}">
@@ -1249,6 +1256,29 @@ function bindViewEvents(){
       go('customers');
     });
   });
+
+  const ceditSave = document.getElementById('cedit-save');
+  if(ceditSave){
+    ceditSave.addEventListener('click', async ()=>{
+      const c = DATA.customers.find(x=>x.id===state.params.id);
+      if(!c) return;
+      const name = document.getElementById('cedit-name').value.trim();
+      const tax = document.getElementById('cedit-tax').value.trim();
+      if(!name){ toast('أدخل اسم العميل'); return; }
+      c.name = name;
+      c.taxNumber = tax;
+      // حدّث نفس الاسم والرقم الضريبي بفواتير هذا العميل الحالية
+      DATA.invoices.forEach(inv=>{
+        if(inv.customerId === c.id){
+          inv.customerName = name;
+          inv.customerTax = tax;
+        }
+      });
+      await saveData();
+      toast('تم حفظ تعديلات العميل');
+      render();
+    });
+  }
 
   // Orders
   const orderSearch = document.getElementById('order-search');
