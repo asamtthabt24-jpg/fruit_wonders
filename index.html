@@ -6,6 +6,7 @@
 <title>نظام الفواتير</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
 <style>
   :root{
     --navy:#16323F;
@@ -21,7 +22,7 @@
     --line:#E3D9C2;
   }
   *{box-sizing:border-box;}
-  body{margin:0;font-family:'Tajawal',sans-serif;background:var(--paper);color:var(--ink);}
+  body{margin:0;font-family:'Tajawal',sans-serif;background:var(--paper);color:var(--ink);font-size:16px;line-height:1.5;}
   #app{display:block;}
 
   /* Top nav */
@@ -37,18 +38,18 @@
 
   /* Cards / generic */
   .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(22,50,63,.05);}
-  h1{font-size:22px;margin:0 0 14px;color:var(--navy);}
-  h2{font-size:18px;margin:0 0 10px;color:var(--navy);}
-  label{display:block;font-size:13px;color:var(--muted);margin-bottom:5px;font-weight:500;}
+  h1{font-size:24px;margin:0 0 14px;color:var(--navy);}
+  h2{font-size:19px;margin:0 0 10px;color:var(--navy);}
+  label{display:block;font-size:14px;color:var(--muted);margin-bottom:5px;font-weight:600;}
   input[type=text],input[type=number],input[type=tel],input[type=search],select,textarea{
-    width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-family:inherit;font-size:14px;background:#fff;color:var(--ink);
+    width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;font-family:inherit;font-size:15.5px;background:#fff;color:var(--ink);
   }
   input:focus,select:focus,textarea:focus{outline:2px solid var(--gold-2);outline-offset:1px;}
   .row{display:flex;gap:12px;flex-wrap:wrap;}
   .row > *{flex:1;min-width:150px;}
   .field{margin-bottom:12px;}
 
-  button{cursor:pointer;font-family:inherit;font-weight:700;border:none;border-radius:9px;padding:10px 16px;font-size:14px;transition:.15s;}
+  button{cursor:pointer;font-family:inherit;font-weight:700;border:none;border-radius:9px;padding:10px 16px;font-size:15px;transition:.15s;}
   .btn-primary{background:var(--gold);color:#fff;}
   .btn-primary:hover{background:var(--gold-2);}
   .btn-navy{background:var(--navy);color:#fff;}
@@ -63,14 +64,14 @@
   /* Top stat banner */
   .stat-banner{background:linear-gradient(120deg,var(--navy),var(--navy-2));color:#fff;border-radius:14px;padding:18px 22px;margin-bottom:18px;display:flex;gap:26px;flex-wrap:wrap;align-items:center;}
   .stat{min-width:140px;}
-  .stat .num{font-size:26px;font-weight:800;color:var(--gold-2);}
-  .stat .lbl{font-size:12.5px;color:#C9D6DA;margin-top:2px;}
+  .stat .num{font-size:27px;font-weight:800;color:var(--gold-2);}
+  .stat .lbl{font-size:13.5px;color:#DCE7EA;margin-top:2px;}
 
   /* Lists */
   .list-item{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:11px;margin-bottom:8px;background:#fff;cursor:pointer;transition:.15s;}
   .list-item:hover{border-color:var(--gold-2);background:var(--paper-2);}
-  .li-main{font-weight:700;color:var(--navy);}
-  .li-sub{font-size:12.5px;color:var(--muted);margin-top:3px;}
+  .li-main{font-weight:700;color:var(--navy);font-size:15.5px;}
+  .li-sub{font-size:13.5px;color:var(--muted);margin-top:3px;}
   .li-right{text-align:left;}
   .li-price{font-weight:800;color:var(--gold);font-size:15px;}
 
@@ -281,6 +282,41 @@ function sumOrders(){ return DATA.orders.reduce((s,o)=> s + o.total, 0); }
 function sumFunds(){ return DATA.funds.reduce((s,f)=> s + f.amount, 0); }
 function sumLosses(){ return DATA.losses.reduce((s,l)=> s + l.amount, 0); }
 function netProfit(){ return sumCollectedFromInvoices() + sumOrders() + sumFunds() - sumLosses(); }
+
+function statsPeriodRange(period){
+  const now = Date.now();
+  const d = new Date();
+  const startOfDay = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  switch(period){
+    case 'today': return {start:startOfDay, end:now};
+    case 'week': return {start: now - 7*24*3600*1000, end: now};
+    case 'month': return {start: new Date(d.getFullYear(), d.getMonth(), 1).getTime(), end: now};
+    case 'lastMonth': {
+      const start = new Date(d.getFullYear(), d.getMonth()-1, 1).getTime();
+      const end = new Date(d.getFullYear(), d.getMonth(), 1).getTime() - 1;
+      return {start, end};
+    }
+    default: return {start:0, end:now};
+  }
+}
+function getPeriodStats(period){
+  const {start,end} = statsPeriodRange(period);
+  return getRangeStats(start, end);
+}
+function getRangeStats(start, end){
+  const pInvoices = DATA.invoices.filter(i=> i.createdAt>=start && i.createdAt<=end);
+  const pOrders = DATA.orders.filter(o=> o.createdAt>=start && o.createdAt<=end);
+  const pLosses = DATA.losses.filter(l=> l.date>=start && l.date<=end);
+  const pFunds = DATA.funds.filter(f=> f.date>=start && f.date<=end);
+  const pReceipts = DATA.receipts.filter(r=> r.createdAt>=start && r.createdAt<=end);
+  const pGross = pInvoices.reduce((s,i)=>s+i.total,0);
+  const pDiscounts = pInvoices.reduce((s,i)=> s + (i.manualTotal!=null? (i.total-i.manualTotal):0), 0);
+  const pOrdersTotal = pOrders.reduce((s,o)=>s+o.total,0);
+  const pLossesTotal = pLosses.reduce((s,l)=>s+l.amount,0);
+  const pFundsTotal = pFunds.reduce((s,f)=>s+f.amount,0);
+  const pNetProfit = pDiscounts + pOrdersTotal + pFundsTotal - pLossesTotal;
+  return {pInvoices,pOrders,pLosses,pFunds,pReceipts,pGross,pDiscounts,pOrdersTotal,pLossesTotal,pFundsTotal,pNetProfit};
+}
 
 /* ===================== RENDER SHELL ===================== */
 function render(){
@@ -930,6 +966,43 @@ function renderLosses(){
     </div>
 
     <div class="card">
+      <h2>إحصائيات حسب الفترة</h2>
+      <div class="btn-row" style="margin-bottom:14px;">
+        <button class="${(!state._statsPeriod||state._statsPeriod==='today')?'btn-primary':'btn-outline'} btn-sm" data-period="today">اليوم</button>
+        <button class="${state._statsPeriod==='week'?'btn-primary':'btn-outline'} btn-sm" data-period="week">آخر 7 أيام</button>
+        <button class="${state._statsPeriod==='month'?'btn-primary':'btn-outline'} btn-sm" data-period="month">هذا الشهر</button>
+        <button class="${state._statsPeriod==='lastMonth'?'btn-primary':'btn-outline'} btn-sm" data-period="lastMonth">الشهر الماضي</button>
+        <button class="${state._statsPeriod==='all'?'btn-primary':'btn-outline'} btn-sm" data-period="all">كل الفترة</button>
+      </div>
+      ${(()=>{
+        const p = getPeriodStats(state._statsPeriod||'today');
+        return `
+          <div class="stat-banner" style="background:linear-gradient(120deg,var(--gold),var(--gold-2));">
+            <div class="stat"><div class="num">${fmtMoney(p.pNetProfit)}</div><div class="lbl">صافي الربح خلال الفترة</div></div>
+            <div class="stat"><div class="num">${p.pInvoices.length}</div><div class="lbl">عدد الفواتير</div></div>
+            <div class="stat"><div class="num">${fmtMoney(p.pGross)}</div><div class="lbl">إجمالي الفواتير</div></div>
+            <div class="stat"><div class="num">${fmtMoney(p.pDiscounts)}</div><div class="lbl">التحصيل (خصومات)</div></div>
+            <div class="stat"><div class="num">${p.pOrders.length}</div><div class="lbl">عدد الطلبات أونلاين</div></div>
+            <div class="stat"><div class="num">${fmtMoney(p.pOrdersTotal)}</div><div class="lbl">مكاسب الطلبات أونلاين</div></div>
+            <div class="stat"><div class="num">${fmtMoney(p.pFundsTotal)}</div><div class="lbl">الإيداعات</div></div>
+            <div class="stat"><div class="num">${fmtMoney(p.pLossesTotal)}</div><div class="lbl">الخسائر</div></div>
+            <div class="stat"><div class="num">${p.pReceipts.length}</div><div class="lbl">عدد سندات القبض</div></div>
+          </div>
+        `;
+      })()}
+    </div>
+
+    <div class="card">
+      <h2>مقارنة عناصر الأرباح خلال الفترة</h2>
+      <div style="height:260px;"><canvas id="period-bar-chart"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h2>اتجاه صافي الربح خلال آخر 14 يوم</h2>
+      <div style="height:260px;"><canvas id="trend-line-chart"></canvas></div>
+    </div>
+
+    <div class="card">
       <h2>تسجيل خسارة</h2>
       <div class="row">
         <div class="field"><label>الوصف</label><input type="text" id="loss-desc" placeholder="مثال: تلف بضاعة"></div>
@@ -971,8 +1044,85 @@ function renderLosses(){
   `;
 }
 
+/* ===================== CHARTS (statistics page) ===================== */
+let _periodBarChart = null;
+let _trendLineChart = null;
+function initLossesCharts(){
+  if(typeof Chart === 'undefined'){
+    ['period-bar-chart','trend-line-chart'].forEach(id=>{
+      const c = document.getElementById(id);
+      if(c && c.parentElement){
+        c.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:14px;text-align:center;padding:10px;">تعذّر تحميل مكتبة الرسوم البيانية. تأكد من اتصالك بالإنترنت وحدّث الصفحة.</div>';
+      }
+    });
+    return;
+  }
+
+  // Bar chart: breakdown of profit components for the selected period
+  const barCanvas = document.getElementById('period-bar-chart');
+  if(barCanvas){
+    if(_periodBarChart) _periodBarChart.destroy();
+    const p = getPeriodStats(state._statsPeriod||'today');
+    _periodBarChart = new Chart(barCanvas, {
+      type: 'bar',
+      data: {
+        labels: ['إجمالي الفواتير','التحصيل (خصومات)','مكاسب الطلبات أونلاين','الإيداعات','الخسائر'],
+        datasets: [{
+          data: [p.pGross, p.pDiscounts, p.pOrdersTotal, p.pFundsTotal, p.pLossesTotal],
+          backgroundColor: ['#1F4757','#B8873A','#3F7D58','#D9A857','#B3432B'],
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false } },
+        scales:{ y:{ beginAtZero:true } }
+      }
+    });
+  }
+
+  // Line chart: daily net profit trend over the last 14 days
+  const lineCanvas = document.getElementById('trend-line-chart');
+  if(lineCanvas){
+    if(_trendLineChart) _trendLineChart.destroy();
+    const labels = [];
+    const values = [];
+    for(let i=13; i>=0; i--){
+      const dayStart = new Date();
+      dayStart.setHours(0,0,0,0);
+      dayStart.setDate(dayStart.getDate()-i);
+      const start = dayStart.getTime();
+      const end = start + 24*3600*1000 - 1;
+      const s = getRangeStats(start, end);
+      labels.push(dayStart.toLocaleDateString('ar-SA-u-ca-gregory-nu-latn',{day:'2-digit',month:'2-digit'}));
+      values.push(s.pNetProfit);
+    }
+    _trendLineChart = new Chart(lineCanvas, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label:'صافي الربح اليومي',
+          data: values,
+          borderColor:'#B8873A',
+          backgroundColor:'rgba(184,135,58,0.15)',
+          fill:true,
+          tension:0.3,
+          pointRadius:3
+        }]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false } },
+        scales:{ y:{ beginAtZero:true } }
+      }
+    });
+  }
+}
+
 /* ===================== EVENT BINDING PER VIEW ===================== */
 function bindViewEvents(){
+  if(state.view==='losses') initLossesCharts();
   // Company settings
   const csSave = document.getElementById('cs-save');
   if(csSave){
@@ -1416,6 +1566,12 @@ function bindViewEvents(){
   }
 
   // Losses & funds
+  document.querySelectorAll('[data-period]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      state._statsPeriod = el.getAttribute('data-period');
+      render();
+    });
+  });
   const lossAdd = document.getElementById('loss-add');
   if(lossAdd){
     lossAdd.addEventListener('click', async ()=>{
@@ -1647,11 +1803,15 @@ function initSignaturePad(canvas, getRecord){
 
 /* ===================== BOOT ===================== */
 const SAFE_AUTOSYNC_VIEWS = ['invoices','customers','orders','losses'];
+function isUserTyping(){
+  const el = document.activeElement;
+  return !!(el && (el.tagName==='INPUT' || el.tagName==='TEXTAREA' || el.tagName==='SELECT'));
+}
 (async function(){
   await loadData();
   render();
   setInterval(async ()=>{
-    if(SAFE_AUTOSYNC_VIEWS.includes(state.view)){
+    if(SAFE_AUTOSYNC_VIEWS.includes(state.view) && !isUserTyping()){
       await loadData();
       render();
     }
