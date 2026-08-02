@@ -311,11 +311,12 @@ function getRangeStats(start, end){
   const pReceipts = DATA.receipts.filter(r=> r.createdAt>=start && r.createdAt<=end);
   const pGross = pInvoices.reduce((s,i)=>s+i.total,0);
   const pDiscounts = pInvoices.reduce((s,i)=> s + (i.manualTotal!=null? (i.total-i.manualTotal):0), 0);
+  const pNetInvoiced = pInvoices.reduce((s,i)=> s + (i.manualTotal!=null? i.manualTotal : i.total), 0);
   const pOrdersTotal = pOrders.reduce((s,o)=>s+o.total,0);
   const pLossesTotal = pLosses.reduce((s,l)=>s+l.amount,0);
   const pFundsTotal = pFunds.reduce((s,f)=>s+f.amount,0);
   const pNetProfit = pDiscounts + pOrdersTotal + pFundsTotal - pLossesTotal;
-  return {pInvoices,pOrders,pLosses,pFunds,pReceipts,pGross,pDiscounts,pOrdersTotal,pLossesTotal,pFundsTotal,pNetProfit};
+  return {pInvoices,pOrders,pLosses,pFunds,pReceipts,pGross,pDiscounts,pNetInvoiced,pOrdersTotal,pLossesTotal,pFundsTotal,pNetProfit};
 }
 
 /* ===================== RENDER SHELL ===================== */
@@ -953,14 +954,10 @@ function renderReceiptDetail(){
 function renderLosses(){
   const profit = netProfit();
   const gross = grossInvoicesTotal();
-  const collected = sumCollectedFromInvoices();
-  const remaining = gross - collected;
   return `
     <div class="stat-banner">
       <div class="stat"><div class="num">${fmtMoney(profit)}</div><div class="lbl">صافي الأرباح (التحصيل من الفواتير + طلبات أونلاين + إيداعات − خسائر)</div></div>
       <div class="stat"><div class="num">${fmtMoney(gross)}</div><div class="lbl">إجمالي الفواتير</div></div>
-      <div class="stat"><div class="num">${fmtMoney(collected)}</div><div class="lbl">التحصيل من الفواتير (خصومات فقط)</div></div>
-      <div class="stat"><div class="num">${fmtMoney(remaining)}</div><div class="lbl">المتبقي بعد التحصيل</div></div>
       <div class="stat"><div class="num">${fmtMoney(sumOrders())}</div><div class="lbl">مكاسب الطلبات أونلاين</div></div>
       <div class="stat"><div class="num">${fmtMoney(sumLosses())}</div><div class="lbl">إجمالي الخسائر</div></div>
     </div>
@@ -981,7 +978,6 @@ function renderLosses(){
             <div class="stat"><div class="num">${fmtMoney(p.pNetProfit)}</div><div class="lbl">صافي الربح خلال الفترة</div></div>
             <div class="stat"><div class="num">${p.pInvoices.length}</div><div class="lbl">عدد الفواتير</div></div>
             <div class="stat"><div class="num">${fmtMoney(p.pGross)}</div><div class="lbl">إجمالي الفواتير</div></div>
-            <div class="stat"><div class="num">${fmtMoney(p.pDiscounts)}</div><div class="lbl">التحصيل (خصومات)</div></div>
             <div class="stat"><div class="num">${p.pOrders.length}</div><div class="lbl">عدد الطلبات أونلاين</div></div>
             <div class="stat"><div class="num">${fmtMoney(p.pOrdersTotal)}</div><div class="lbl">مكاسب الطلبات أونلاين</div></div>
             <div class="stat"><div class="num">${fmtMoney(p.pFundsTotal)}</div><div class="lbl">الإيداعات</div></div>
@@ -1018,6 +1014,28 @@ function renderLosses(){
         <div class="field" style="max-width:150px;"><label>المبلغ</label><input type="number" id="fund-amount"></div>
         <div style="max-width:120px;"><button class="btn-primary" id="fund-add" style="width:100%;margin-top:20px;">إضافة</button></div>
       </div>
+    </div>
+
+    <div class="card">
+      <h2>سجل التحصيل من الفواتير (الخصومات)</h2>
+      ${(()=>{
+        const discounted = DATA.invoices.filter(i=>i.manualTotal!=null).map(i=>({
+          id:i.id, number:i.number, customerName:i.customerName,
+          amount: i.total - i.manualTotal, date: i.updatedAt
+        })).sort((a,b)=>b.date-a.date);
+        if(!discounted.length) return `<div class="empty">لا توجد خصومات مسجلة بعد</div>`;
+        const expanded = !!state._discountsLogExpanded;
+        const shown = expanded? discounted : discounted.slice(0,3);
+        let html = shown.map(d=>`
+          <div class="list-item" data-open-invoice="${d.id}">
+            <div><div class="li-main">${esc(d.customerName)} <span class="badge badge-gold">${d.number}</span></div><div class="li-sub">${fmtDate(d.date)}</div></div>
+            <div class="li-right"><span style="color:var(--green);font-weight:800;">+ ${fmtMoney(d.amount)} ر.س</span></div>
+          </div>`).join('');
+        if(discounted.length > 3){
+          html += `<button class="btn-outline btn-sm" id="toggle-discounts-log" style="width:100%;margin-top:8px;">${expanded? 'عرض أقل' : 'عرض المزيد ('+(discounted.length-3)+')'}</button>`;
+        }
+        return html;
+      })()}
     </div>
 
     <div class="card">
@@ -1066,10 +1084,10 @@ function initLossesCharts(){
     _periodBarChart = new Chart(barCanvas, {
       type: 'bar',
       data: {
-        labels: ['إجمالي الفواتير','التحصيل (خصومات)','مكاسب الطلبات أونلاين','الإيداعات','الخسائر'],
+        labels: ['إجمالي الفواتير','مكاسب الطلبات أونلاين','الإيداعات','الخسائر'],
         datasets: [{
-          data: [p.pGross, p.pDiscounts, p.pOrdersTotal, p.pFundsTotal, p.pLossesTotal],
-          backgroundColor: ['#1F4757','#B8873A','#3F7D58','#D9A857','#B3432B'],
+          data: [p.pGross, p.pOrdersTotal, p.pFundsTotal, p.pLossesTotal],
+          backgroundColor: ['#1F4757','#3F7D58','#D9A857','#B3432B'],
           borderRadius: 6
         }]
       },
@@ -1572,6 +1590,13 @@ function bindViewEvents(){
       render();
     });
   });
+  const toggleDiscountsLog = document.getElementById('toggle-discounts-log');
+  if(toggleDiscountsLog){
+    toggleDiscountsLog.addEventListener('click', ()=>{
+      state._discountsLogExpanded = !state._discountsLogExpanded;
+      render();
+    });
+  }
   const lossAdd = document.getElementById('loss-add');
   if(lossAdd){
     lossAdd.addEventListener('click', async ()=>{
