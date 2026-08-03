@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+index.html
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -505,7 +506,6 @@ function renderInvoiceItemsStep(){
         <div class="field" style="max-width:100px;"><label>الكمية</label><input type="number" id="new-item-qty" value="1" min="1"></div>
       </div>
       <button class="btn-navy btn-sm" id="add-new-item">+ إضافة الصنف للفاتورة</button>
-
       <div style="margin-top:16px;">
         <label>أو اختر من الأصناف المحفوظة (ابحث بالاسم أو السعر)</label>
         <input type="search" id="cat-search" placeholder="بحث..." value="${esc(state._catQ||'')}">
@@ -519,7 +519,6 @@ function renderInvoiceItemsStep(){
         </div>
       </div>
     </div>
-
     <div class="card">
       <h2>أصناف الفاتورة الحالية</h2>
       ${d.items.length? d.items.map((it,idx)=>`
@@ -533,18 +532,15 @@ function renderInvoiceItemsStep(){
             <button class="btn-danger btn-sm" data-remove-item="${idx}">حذف</button>
           </div>
         </div>`).join('') : `<div class="empty">لم تُضف أصناف بعد</div>`}
-
       <div class="field" style="margin-top:14px;">
         <label class="tax-toggle"><input type="checkbox" id="tax-on" ${d.taxOn?'checked':''}> إضافة ضريبة القيمة المضافة</label>
         <div class="row" style="margin-top:6px;${d.taxOn?'':'display:none'}" id="tax-rate-row">
           <div style="max-width:140px;"><label>نسبة الضريبة %</label><input type="number" id="tax-rate" value="${d.taxRate}"></div>
         </div>
       </div>
-
       <div style="text-align:left;font-size:14px;color:var(--muted);">
         الإجمالي قبل الضريبة: <b style="color:var(--navy);">${fmtMoney(d.items.reduce((s,i)=>s+i.price*i.qty,0))} ر.س</b>
       </div>
-
       <div class="btn-row" style="justify-content:flex-end;">
         <button class="btn-outline" data-go="invoices">إلغاء</button>
         <button class="btn-primary" id="items-next" ${d.items.length? '':'disabled'}>التالي: بيانات العميل ←</button>
@@ -570,14 +566,12 @@ function renderInvoiceCustomerStep(){
             <button class="btn-outline btn-sm" data-pick-customer="${c.id}">اختيار</button>
           </div>`).join('') : `<div style="color:var(--muted);font-size:13px;padding:6px;">لا يوجد عملاء مطابقين</div>`}
       </div>
-
       <h2 style="margin-top:18px;">أو أضف عميلاً جديداً</h2>
       <div class="row">
         <div class="field"><label>اسم العميل</label><input type="text" id="new-cust-name" value="${esc(state._newCustName||'')}"></div>
         <div class="field"><label>الرقم الضريبي (اختياري)</label><input type="text" id="new-cust-tax" value="${esc(state._newCustTax||'')}"></div>
       </div>
       <button class="btn-navy btn-sm" id="use-new-customer">استخدام هذا العميل</button>
-
       <div class="field" style="margin-top:18px;">
         <label>اسم الموظف الذي سجّل الفاتورة (اختياري)</label>
         <input type="text" id="inv-recorded-by" value="${esc(d.recordedBy||'')}" placeholder="مثال: محمد">
@@ -586,7 +580,6 @@ function renderInvoiceCustomerStep(){
         <label>موقع الفاتورة (اختياري)</label>
         <input type="text" id="inv-location" value="${esc(d.location||'')}" placeholder="مثال: فرع الرياض، حي النخيل">
       </div>
-
       <div class="btn-row" style="justify-content:space-between;margin-top:20px;">
         <button class="btn-outline" data-go="invoice-items">← رجوع للأصناف</button>
         <button class="btn-primary" id="save-invoice" ${d && d.customerName? '':'disabled'}>حفظ الفاتورة</button>
@@ -610,7 +603,6 @@ function renderInvoiceDetail(){
       <button class="${state._confirmDelInv===inv.id?'btn-confirm':'btn-danger'}" id="delete-inv">${state._confirmDelInv===inv.id? 'اضغط للتأكيد ⚠️' : 'حذف الفاتورة'}</button>
     </div>
   </div>
-
   <div class="card invoice-paper">
     <div class="inv-notch-top"></div>
     <div class="inv-head">
@@ -623,7 +615,6 @@ function renderInvoiceDetail(){
         <div class="c-tax">الرقم الضريبي: ${esc(DATA.setup.taxNumber||'—')}</div>
       </div>
     </div>
-
     <div class="inv-parties">
       <div class="party">
         <div class="p-label">فاتورة إلى</div>
@@ -631,7 +622,6 @@ function renderInvoiceDetail(){
         <div class="p-tax">الرقم الضريبي: ${esc(inv.customerTax||'—')}</div>
       </div>
     </div>
-
     <table class="inv-table">
       <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th><th class="no-print">إجراء</th></tr></thead>
       <tbody>
@@ -645,7 +635,6 @@ function renderInvoiceDetail(){
           </tr>`).join('')}
       </tbody>
     </table>
-
     <div class="no-print card" style="background:var(--paper-2);">
       <h2 style="font-size:15px;">إضافة صنف جديد للفاتورة</h2>
       <div class="row">
@@ -655,7 +644,6 @@ function renderInvoiceDetail(){
         <div style="max-width:120px;"><button class="btn-navy" id="add-item-to-inv" style="width:100%;">إضافة</button></div>
       </div>
     </div>
-
     <div class="inv-totals">
       <div class="totals-box">
         <div class="t-row"><span>الإجمالي قبل الضريبة</span><span>${fmtMoney(inv.subtotal)} ر.س</span></div>
@@ -664,14 +652,12 @@ function renderInvoiceDetail(){
         <div class="t-final"><span>الإجمالي المستحق</span><span>${fmtMoney(displayTotal)} ر.س</span></div>
       </div>
     </div>
-
     <div class="no-print btn-row" style="justify-content:flex-end;">
       <input type="number" id="manual-price" placeholder="مبلغ الخصم (يُطرح من السعر الحالي)" style="max-width:220px;">
       <button class="btn-outline btn-sm" id="apply-manual-price">تطبيق الخصم</button>
       ${(inv.priceHistory && inv.priceHistory.length)? `<button class="btn-outline btn-sm" id="revert-price">↩ التراجع عن آخر خصم</button>`:''}
       ${inv.manualTotal!=null? `<button class="btn-outline btn-sm" id="revert-all-price">↩↩ استرجاع السعر الأصلي بالكامل</button>`:''}
     </div>
-
     <div class="inv-sign">
       <div class="sign-box">
         <div class="sl">توقيع العميل (اختياري)</div>
@@ -961,7 +947,6 @@ function renderLosses(){
       <div class="stat"><div class="num">${fmtMoney(sumOrders())}</div><div class="lbl">مكاسب الطلبات أونلاين</div></div>
       <div class="stat"><div class="num">${fmtMoney(sumLosses())}</div><div class="lbl">إجمالي الخسائر</div></div>
     </div>
-
     <div class="card">
       <h2>إحصائيات حسب الفترة</h2>
       <div class="btn-row" style="margin-bottom:14px;">
@@ -987,17 +972,14 @@ function renderLosses(){
         `;
       })()}
     </div>
-
     <div class="card">
       <h2>مقارنة عناصر الأرباح خلال الفترة</h2>
       <div style="height:260px;"><canvas id="period-bar-chart"></canvas></div>
     </div>
-
     <div class="card">
       <h2>اتجاه صافي الربح خلال آخر 14 يوم</h2>
       <div style="height:260px;"><canvas id="trend-line-chart"></canvas></div>
     </div>
-
     <div class="card">
       <h2>تسجيل خسارة</h2>
       <div class="row">
@@ -1006,7 +988,6 @@ function renderLosses(){
         <div style="max-width:120px;"><button class="btn-danger" id="loss-add" style="width:100%;margin-top:20px;">تسجيل</button></div>
       </div>
     </div>
-
     <div class="card">
       <h2>إضافة أموال للمشروع (إيداع/دخل)</h2>
       <div class="row">
@@ -1015,7 +996,6 @@ function renderLosses(){
         <div style="max-width:120px;"><button class="btn-primary" id="fund-add" style="width:100%;margin-top:20px;">إضافة</button></div>
       </div>
     </div>
-
     <div class="card">
       <h2>سجل التحصيل من الفواتير (الخصومات)</h2>
       ${(()=>{
@@ -1037,7 +1017,6 @@ function renderLosses(){
         return html;
       })()}
     </div>
-
     <div class="card">
       <h2>سجل الخسائر</h2>
       ${DATA.losses.length? DATA.losses.slice().sort((a,b)=>b.date-a.date).map(l=>`
@@ -1048,7 +1027,6 @@ function renderLosses(){
           </div>
         </div>`).join('') : `<div class="empty">لا توجد خسائر مسجلة</div>`}
     </div>
-
     <div class="card">
       <h2>سجل الإيداعات</h2>
       ${DATA.funds.length? DATA.funds.slice().sort((a,b)=>b.date-a.date).map(f=>`
