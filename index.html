@@ -1645,67 +1645,61 @@ function printInvoice(invoiceId){
   <title>فاتورة ${esc(inv.number)}</title>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
   <style>
+    @page { size: 58mm auto; margin: 0; }
     *{box-sizing:border-box;}
-    body{font-family:'Tajawal',sans-serif;color:#20272B;margin:0;padding:26px 30px;background:#fff;}
-    .inv-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #16323F;padding-bottom:14px;margin-bottom:16px;}
-    .inv-num{background:#16323F;color:#fff;padding:6px 14px;border-radius:8px;font-weight:800;font-size:14px;}
-    .inv-dates{font-size:12px;color:#6B7680;margin-top:8px;line-height:1.7;}
-    .inv-company{text-align:left;}
-    .inv-company .c-name{font-weight:800;color:#16323F;font-size:16px;}
-    .inv-company .c-tax{font-size:12px;color:#6B7680;}
-    .party{background:#F1EADA;border-radius:10px;padding:10px 14px;margin-bottom:18px;}
-    .party .p-label{font-size:11px;color:#6B7680;font-weight:700;margin-bottom:3px;}
-    .party .p-name{font-weight:700;color:#16323F;}
-    .party .p-tax{font-size:12px;color:#6B7680;}
-    table{width:100%;border-collapse:collapse;margin-bottom:16px;}
-    th{background:#16323F;color:#fff;padding:9px 10px;font-size:13px;text-align:right;}
-    td{padding:9px 10px;border-bottom:1px solid #E3D9C2;font-size:13.5px;}
-    .inv-totals{display:flex;justify-content:flex-end;margin-bottom:18px;}
-    .totals-box{width:280px;}
-    .t-row{display:flex;justify-content:space-between;padding:6px 0;font-size:14px;color:#6B7680;}
-    .t-final{display:flex;justify-content:space-between;padding:10px 14px;background:#B8873A;color:#fff;border-radius:10px;font-weight:800;font-size:17px;margin-top:6px;}
-    .t-old{font-size:12px;color:#B3432B;text-decoration:line-through;text-align:left;}
-    .inv-sign{display:flex;justify-content:space-between;align-items:flex-end;margin-top:26px;}
-    .sl{font-size:12px;color:#6B7680;margin-bottom:6px;}
-    img.sig{max-width:220px;max-height:90px;border-bottom:1px solid #20272B;}
-    @media print{ body{padding:0;} }
+    html,body{width:58mm;margin:0;padding:0;}
+    body{font-family:'Tajawal',sans-serif;color:#000;padding:2mm 2.5mm;font-size:11px;line-height:1.45;}
+    .center{text-align:center;}
+    .c-name{font-weight:800;font-size:14px;}
+    .c-tax{font-size:10px;}
+    .sep{border-top:1px dashed #000;margin:6px 0;}
+    .row{display:flex;justify-content:space-between;font-size:11px;margin:2px 0;}
+    .row .lbl{color:#333;}
+    .items-head{display:flex;justify-content:space-between;font-weight:800;font-size:10.5px;border-bottom:1px solid #000;padding-bottom:3px;margin-bottom:3px;}
+    .item-line{display:flex;justify-content:space-between;font-size:11px;margin:3px 0;}
+    .item-name{flex:1;padding-left:4px;}
+    .item-qty{width:22px;text-align:center;}
+    .item-total{width:52px;text-align:left;}
+    .totals .row{font-size:12px;}
+    .grand{font-weight:800;font-size:14px;border-top:1px dashed #000;border-bottom:3px double #000;padding:4px 0;margin-top:4px;}
+    .sig-area{margin-top:10px;text-align:center;}
+    img.sig{max-width:44mm;max-height:16mm;}
+    .thanks{margin-top:8px;font-size:11px;}
+    @media print{ body{padding:2mm 2.5mm;} }
   </style></head>
   <body>
-    <div class="inv-head">
-      <div>
-        <div class="inv-num">${esc(inv.number)}</div>
-        <div class="inv-dates">تاريخ الإنشاء: ${fmtDate(inv.createdAt)}<br>آخر تعديل: ${fmtDate(inv.updatedAt)}${inv.recordedBy? '<br>سجّله: '+esc(inv.recordedBy):''}${inv.location? '<br>الموقع: '+esc(inv.location):''}</div>
-      </div>
-      <div class="inv-company">
-        <div class="c-name">${esc(DATA.setup.companyName)}</div>
-        <div class="c-tax">الرقم الضريبي: ${esc(DATA.setup.taxNumber||'—')}</div>
-      </div>
+    <div class="center">
+      <div class="c-name">${esc(DATA.setup.companyName)}</div>
+      <div class="c-tax">الرقم الضريبي: ${esc(DATA.setup.taxNumber||'—')}</div>
     </div>
-    <div class="party">
-      <div class="p-label">فاتورة إلى</div>
-      <div class="p-name">${esc(inv.customerName)}</div>
-      <div class="p-tax">الرقم الضريبي: ${esc(inv.customerTax||'—')}</div>
+    <div class="sep"></div>
+    <div class="row"><span class="lbl">رقم الفاتورة</span><span>${esc(inv.number)}</span></div>
+    <div class="row"><span class="lbl">التاريخ</span><span>${fmtDate(inv.createdAt)}</span></div>
+    ${inv.recordedBy? `<div class="row"><span class="lbl">سجّله</span><span>${esc(inv.recordedBy)}</span></div>`:''}
+    ${inv.location? `<div class="row"><span class="lbl">الموقع</span><span>${esc(inv.location)}</span></div>`:''}
+    <div class="sep"></div>
+    <div class="row"><span class="lbl">العميل</span><span>${esc(inv.customerName)}</span></div>
+    ${inv.customerTax? `<div class="row"><span class="lbl">الرقم الضريبي</span><span>${esc(inv.customerTax)}</span></div>`:''}
+    <div class="sep"></div>
+    <div class="items-head"><span class="item-name">الصنف</span><span class="item-qty">كمية</span><span class="item-total">الإجمالي</span></div>
+    ${inv.items.map(it=>`
+      <div class="item-line">
+        <span class="item-name">${esc(it.name)}</span>
+        <span class="item-qty">${it.qty}</span>
+        <span class="item-total">${fmtMoney(it.price*it.qty)}</span>
+      </div>`).join('')}
+    <div class="sep"></div>
+    <div class="totals">
+      <div class="row"><span class="lbl">الإجمالي قبل الضريبة</span><span>${fmtMoney(inv.subtotal)}</span></div>
+      <div class="row"><span class="lbl">الضريبة (${inv.taxRate}%)</span><span>${fmtMoney(inv.tax)}</span></div>
+      ${inv.manualTotal!=null? `<div class="row"><span class="lbl">السعر الأصلي</span><span>${fmtMoney(inv.total)}</span></div>`:''}
+      <div class="row grand"><span>الإجمالي المستحق</span><span>${fmtMoney(displayTotal)} ر.س</span></div>
     </div>
-    <table>
-      <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
-      <tbody>
-        ${inv.items.map(it=>`<tr><td>${esc(it.name)}</td><td>${it.qty}</td><td>${fmtMoney(it.price)}</td><td>${fmtMoney(it.price*it.qty)}</td></tr>`).join('')}
-      </tbody>
-    </table>
-    <div class="inv-totals">
-      <div class="totals-box">
-        <div class="t-row"><span>الإجمالي قبل الضريبة</span><span>${fmtMoney(inv.subtotal)} ر.س</span></div>
-        <div class="t-row"><span>الضريبة (${inv.taxRate}%)</span><span>${fmtMoney(inv.tax)} ر.س</span></div>
-        ${inv.manualTotal!=null? `<div class="t-old">السعر الأصلي: ${fmtMoney(inv.total)} ر.س</div>`:''}
-        <div class="t-final"><span>الإجمالي المستحق</span><span>${fmtMoney(displayTotal)} ر.س</span></div>
-      </div>
+    <div class="sig-area">
+      <div style="font-size:10px;margin-bottom:3px;">توقيع العميل</div>
+      ${inv.signature ? `<img class="sig" src="${inv.signature}">` : `<div style="border-bottom:1px solid #000;height:14mm;width:40mm;margin:0 auto;"></div>`}
     </div>
-    <div class="inv-sign">
-      <div>
-        <div class="sl">توقيع العميل</div>
-        ${inv.signature ? `<img class="sig" src="${inv.signature}">` : `<div style="width:220px;border-bottom:1px solid #20272B;height:60px;"></div>`}
-      </div>
-    </div>
+    <div class="center thanks">شكراً لتعاملكم معنا</div>
     <script>
       window.onload = function(){ setTimeout(function(){ window.print(); }, 200); };
     <\/script>
@@ -1730,46 +1724,41 @@ function printReceipt(receiptId){
   <title>سند قبض ${esc(r.number)}</title>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
   <style>
+    @page { size: 58mm auto; margin: 0; }
     *{box-sizing:border-box;}
-    body{font-family:'Tajawal',sans-serif;color:#20272B;margin:0;padding:26px 30px;background:#fff;}
-    .inv-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #16323F;padding-bottom:14px;margin-bottom:16px;}
-    .inv-num{background:#16323F;color:#fff;padding:6px 14px;border-radius:8px;font-weight:800;font-size:14px;}
-    .inv-dates{font-size:12px;color:#6B7680;margin-top:8px;}
-    .inv-company{text-align:left;}
-    .inv-company .c-name{font-weight:800;color:#16323F;font-size:16px;}
-    .inv-company .c-tax{font-size:12px;color:#6B7680;}
-    .party{background:#F1EADA;border-radius:10px;padding:10px 14px;margin-bottom:18px;}
-    .party .p-label{font-size:11px;color:#6B7680;font-weight:700;margin-bottom:3px;}
-    .party .p-name{font-weight:700;color:#16323F;}
-    .amount-box{display:flex;justify-content:space-between;padding:14px 16px;background:#B8873A;color:#fff;border-radius:10px;font-weight:800;font-size:19px;margin-bottom:16px;}
-    .p-tax{font-size:13px;color:#6B7680;margin-bottom:10px;}
-    .inv-sign{margin-top:30px;}
-    .sl{font-size:12px;color:#6B7680;margin-bottom:6px;}
-    img.sig{max-width:220px;max-height:90px;border-bottom:1px solid #20272B;}
-    @media print{ body{padding:0;} }
+    html,body{width:58mm;margin:0;padding:0;}
+    body{font-family:'Tajawal',sans-serif;color:#000;padding:2mm 2.5mm;font-size:11px;line-height:1.45;}
+    .center{text-align:center;}
+    .c-name{font-weight:800;font-size:14px;}
+    .c-tax{font-size:10px;}
+    .sep{border-top:1px dashed #000;margin:6px 0;}
+    .row{display:flex;justify-content:space-between;font-size:11px;margin:2px 0;}
+    .row .lbl{color:#333;}
+    .amount-box{text-align:center;font-weight:800;font-size:16px;border-top:1px dashed #000;border-bottom:3px double #000;padding:6px 0;margin:6px 0;}
+    .note{font-size:10.5px;margin:3px 0;}
+    .sig-area{margin-top:10px;text-align:center;}
+    img.sig{max-width:44mm;max-height:16mm;}
+    .thanks{margin-top:8px;font-size:11px;}
+    @media print{ body{padding:2mm 2.5mm;} }
   </style></head>
   <body>
-    <div class="inv-head">
-      <div>
-        <div class="inv-num">${esc(r.number)}</div>
-        <div class="inv-dates">تاريخ السند: ${fmtDate(r.createdAt)}</div>
-      </div>
-      <div class="inv-company">
-        <div class="c-name">${esc(DATA.setup.companyName)}</div>
-        <div class="c-tax">الرقم الضريبي: ${esc(DATA.setup.taxNumber||'—')}</div>
-      </div>
+    <div class="center">
+      <div class="c-name">${esc(DATA.setup.companyName)}</div>
+      <div class="c-tax">الرقم الضريبي: ${esc(DATA.setup.taxNumber||'—')}</div>
     </div>
-    <div class="party">
-      <div class="p-label">استلمنا من السيد/ة</div>
-      <div class="p-name">${esc(r.customerName)}</div>
+    <div class="sep"></div>
+    <div class="row"><span class="lbl">رقم السند</span><span>${esc(r.number)}</span></div>
+    <div class="row"><span class="lbl">التاريخ</span><span>${fmtDate(r.createdAt)}</span></div>
+    <div class="sep"></div>
+    <div class="row"><span class="lbl">استلمنا من</span><span>${esc(r.customerName)}</span></div>
+    <div class="amount-box">${fmtMoney(r.amount)} ر.س</div>
+    ${r.invoiceNumber? `<div class="note">سداد مقابل الفاتورة رقم: ${esc(r.invoiceNumber)}</div>`:''}
+    ${r.note? `<div class="note">ملاحظات: ${esc(r.note)}</div>`:''}
+    <div class="sig-area">
+      <div style="font-size:10px;margin-bottom:3px;">توقيع المستلم</div>
+      ${r.signature ? `<img class="sig" src="${r.signature}">` : `<div style="border-bottom:1px solid #000;height:14mm;width:40mm;margin:0 auto;"></div>`}
     </div>
-    <div class="amount-box"><span>المبلغ المستلم</span><span>${fmtMoney(r.amount)} ر.س</span></div>
-    ${r.invoiceNumber? `<div class="p-tax">سداد مقابل الفاتورة رقم: <b>${esc(r.invoiceNumber)}</b></div>`:''}
-    ${r.note? `<div class="p-tax">ملاحظات: ${esc(r.note)}</div>`:''}
-    <div class="inv-sign">
-      <div class="sl">توقيع المستلم</div>
-      ${r.signature ? `<img class="sig" src="${r.signature}">` : `<div style="width:220px;border-bottom:1px solid #20272B;height:60px;"></div>`}
-    </div>
+    <div class="center thanks">شكراً لتعاملكم معنا</div>
     <script>
       window.onload = function(){ setTimeout(function(){ window.print(); }, 200); };
     <\/script>
