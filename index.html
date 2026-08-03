@@ -1751,14 +1751,7 @@ function printInvoice(invoiceId){
     <\/script>
   </body></html>`;
 
-  const win = window.open('', '_blank');
-  if(!win){
-    toast('يبدو أن المتصفح منع فتح نافذة جديدة. الرجاء السماح بالنوافذ المنبثقة لهذا الموقع، أو افتح ملف التطبيق مباشرة في المتصفح بدل المعاينة داخل المحادثة.');
-    return;
-  }
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
+  openPrintWindow(html);
 }
 
 function printReceipt(receiptId){
@@ -1810,14 +1803,24 @@ function printReceipt(receiptId){
     <\/script>
   </body></html>`;
 
-  const win = window.open('', '_blank');
-  if(!win){
-    toast('يبدو أن المتصفح منع فتح نافذة جديدة. الرجاء السماح بالنوافذ المنبثقة.');
-    return;
+  openPrintWindow(html);
+}
+
+function openPrintWindow(html){
+  try{
+    const blob = new Blob([html], {type:'text/html'});
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, '_blank');
+    if(!win){
+      toast('يبدو أن المتصفح منع فتح نافذة جديدة. الرجاء السماح بالنوافذ المنبثقة لهذا الموقع، أو افتح ملف التطبيق مباشرة في المتصفح بدل المعاينة داخل المحادثة.');
+      URL.revokeObjectURL(url);
+      return;
+    }
+    setTimeout(()=> URL.revokeObjectURL(url), 60000);
+  }catch(e){
+    console.error('تعذر فتح نافذة الطباعة', e);
+    toast('تعذر فتح نافذة الطباعة');
   }
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
 }
 
 function recalcInvoice(inv){
