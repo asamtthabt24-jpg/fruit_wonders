@@ -1634,16 +1634,48 @@ function bindViewEvents(){
 }
 
 /* ===================== PRINTING ===================== */
+function buildZatcaQrBase64(sellerName, vatNumber, isoTimestamp, totalWithVat, vatAmount){
+  function tlv(tag, value){
+    const bytes = new TextEncoder().encode(String(value));
+    const out = new Uint8Array(2 + bytes.length);
+    out[0] = tag; out[1] = bytes.length;
+    out.set(bytes, 2);
+    return out;
+  }
+  const parts = [
+    tlv(1, sellerName),
+    tlv(2, vatNumber),
+    tlv(3, isoTimestamp),
+    tlv(4, totalWithVat.toFixed(2)),
+    tlv(5, vatAmount.toFixed(2))
+  ];
+  const totalLen = parts.reduce((s,p)=>s+p.length,0);
+  const all = new Uint8Array(totalLen);
+  let offset=0;
+  parts.forEach(p=>{ all.set(p, offset); offset += p.length; });
+  let binary = '';
+  all.forEach(b=> binary += String.fromCharCode(b));
+  return btoa(binary);
+}
+
 function printInvoice(invoiceId){
   const inv = DATA.invoices.find(i=>i.id===invoiceId);
   if(!inv){ toast('الفاتورة غير موجودة'); return; }
   const displayTotal = inv.manualTotal!=null ? inv.manualTotal : inv.total;
+  const zatcaBase64 = buildZatcaQrBase64(
+    DATA.setup.companyName || '',
+    DATA.setup.taxNumber || '',
+    new Date(inv.createdAt).toISOString(),
+    displayTotal,
+    inv.tax
+  );
 
   const html = `<!DOCTYPE html>
   <html lang="ar" dir="rtl"><head><meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>فاتورة ${esc(inv.number)}</title>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     @page { size: 58mm auto; margin: 0; }
     *{box-sizing:border-box;}
@@ -1665,6 +1697,8 @@ function printInvoice(invoiceId){
     .sig-area{margin-top:10px;text-align:center;}
     img.sig{max-width:44mm;max-height:16mm;}
     .thanks{margin-top:8px;font-size:11px;}
+    #zatca-qr{display:flex;justify-content:center;margin-top:10px;}
+    .qr-note{font-size:9px;color:#333;text-align:center;margin-top:2px;}
     @media print{ body{padding:2mm 2.5mm;} }
   </style></head>
   <body>
@@ -1699,9 +1733,21 @@ function printInvoice(invoiceId){
       <div style="font-size:10px;margin-bottom:3px;">توقيع العميل</div>
       ${inv.signature ? `<img class="sig" src="${inv.signature}">` : `<div style="border-bottom:1px solid #000;height:14mm;width:40mm;margin:0 auto;"></div>`}
     </div>
+    <div id="zatca-qr"></div>
+    <div class="qr-note">رمز الاستجابة السريعة (فاتورة ضريبية مبسطة)</div>
     <div class="center thanks">شكراً لتعاملكم معنا</div>
     <script>
-      window.onload = function(){ setTimeout(function(){ window.print(); }, 200); };
+      window.onload = function(){
+        try{
+          new QRCode(document.getElementById('zatca-qr'), {
+            text: "${zatcaBase64}",
+            width: 110,
+            height: 110,
+            correctLevel: QRCode.CorrectLevel.M
+          });
+        }catch(e){ console.error('QR generation failed', e); }
+        setTimeout(function(){ window.print(); }, 300);
+      };
     <\/script>
   </body></html>`;
 
